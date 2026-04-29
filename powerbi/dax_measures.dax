@@ -1,0 +1,197 @@
+-- Recommended table name for these measures: Measures
+-- If your Power BI locale uses semicolons, replace commas with semicolons in DAX functions.
+
+Total Starts =
+COUNTROWS('Results')
+
+Races =
+DISTINCTCOUNT('Results'[race_ID])
+
+Total Points =
+SUM('Results'[points])
+
+Wins =
+SUM('Results'[is_win])
+
+Podiums =
+SUM('Results'[is_podium])
+
+Points Finishes =
+SUM('Results'[is_points_finish])
+
+Classified Finishes =
+SUM('Results'[is_classified_finish])
+
+Issues =
+SUM('Results'[is_issue])
+
+Q3 Starts =
+SUM('Results'[reached_q3])
+
+Podium Rate =
+DIVIDE([Podiums], [Total Starts])
+
+Win Rate =
+DIVIDE([Wins], [Total Starts])
+
+Points Finish Rate =
+DIVIDE([Points Finishes], [Total Starts])
+
+Issue Rate =
+DIVIDE([Issues], [Total Starts])
+
+Q3 Rate =
+DIVIDE([Q3 Starts], [Total Starts])
+
+Average Start =
+AVERAGE('Results'[starting_position])
+
+Average Finish =
+AVERAGE('Results'[race_position])
+
+Average Position Change =
+AVERAGE('Results'[position_change])
+
+Points Per Race =
+DIVIDE([Total Points], [Races])
+
+Top 3 Starts =
+CALCULATE(
+    [Total Starts],
+    'Results'[starting_position] <= 3
+)
+
+Top 3 Start Podiums =
+CALCULATE(
+    [Podiums],
+    'Results'[starting_position] <= 3
+)
+
+Top 3 Start Podium Rate =
+DIVIDE([Top 3 Start Podiums], [Top 3 Starts])
+
+Top 6 Starts =
+CALCULATE(
+    [Total Starts],
+    'Results'[starting_position] <= 6
+)
+
+Top 6 Start Points =
+CALCULATE(
+    [Total Points],
+    'Results'[starting_position] <= 6
+)
+
+Top 6 Points Per Start =
+DIVIDE([Top 6 Start Points], [Top 6 Starts])
+
+McLaren Starts =
+CALCULATE(
+    [Total Starts],
+    'Results'[constructor_name] = "McLaren"
+)
+
+McLaren Q3 Rate =
+CALCULATE(
+    [Q3 Rate],
+    'Results'[constructor_name] = "McLaren"
+)
+
+McLaren Issue Rate =
+CALCULATE(
+    [Issue Rate],
+    'Results'[constructor_name] = "McLaren"
+)
+
+McLaren Average Start =
+CALCULATE(
+    [Average Start],
+    'Results'[constructor_name] = "McLaren"
+)
+
+McLaren Average Finish =
+CALCULATE(
+    [Average Finish],
+    'Results'[constructor_name] = "McLaren"
+)
+
+McLaren Points =
+CALCULATE(
+    [Total Points],
+    'Results'[constructor_name] = "McLaren"
+)
+
+Miami Starts =
+CALCULATE(
+    [Total Starts],
+    'Results'[is_miami] = 1
+)
+
+Miami Wins =
+CALCULATE(
+    [Wins],
+    'Results'[is_miami] = 1
+)
+
+Miami Podiums =
+CALCULATE(
+    [Podiums],
+    'Results'[is_miami] = 1
+)
+
+McLaren Miami Wins =
+CALCULATE(
+    [Wins],
+    'Results'[constructor_name] = "McLaren",
+    'Results'[is_miami] = 1
+)
+
+McLaren Miami Podiums =
+CALCULATE(
+    [Podiums],
+    'Results'[constructor_name] = "McLaren",
+    'Results'[is_miami] = 1
+)
+
+McLaren Miami Points =
+CALCULATE(
+    [Total Points],
+    'Results'[constructor_name] = "McLaren",
+    'Results'[is_miami] = 1
+)
+
+Median Lap Time ms =
+MEDIAN('Team Race Lap Summary'[median_lap_time_ms])
+
+Median Lap Time sec =
+DIVIDE([Median Lap Time ms], 1000)
+
+Average Lap Time ms =
+AVERAGE('Team Race Lap Summary'[avg_lap_time_ms])
+
+Average Lap Time sec =
+DIVIDE([Average Lap Time ms], 1000)
+
+Best Lap Time ms =
+MIN('Team Race Lap Summary'[best_lap_time_ms])
+
+Best Lap Time sec =
+DIVIDE([Best Lap Time ms], 1000)
+
+Current Form Points =
+CALCULATE(
+    [Total Points],
+    'Results'[is_2026_current_form] = 1
+)
+
+Current Form Q3 Rate =
+CALCULATE(
+    [Q3 Rate],
+    'Results'[is_2026_current_form] = 1
+)
+
+Current Form Issue Rate =
+CALCULATE(
+    [Issue Rate],
+    'Results'[is_2026_current_form] = 1
+)

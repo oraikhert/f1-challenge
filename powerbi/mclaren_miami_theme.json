@@ -1,0 +1,51 @@
+{
+  "name": "McLaren Miami GP",
+  "dataColors": [
+    "#FF8000",
+    "#1E1E1E",
+    "#DC0000",
+    "#00A19C",
+    "#1E41FF",
+    "#B8B8B8",
+    "#5A5A5A",
+    "#F2C94C"
+  ],
+  "background": "#F6F6F3",
+  "foreground": "#111111",
+  "tableAccent": "#FF8000",
+  "visualStyles": {
+    "*": {
+      "*": {
+        "title": [
+          {
+            "fontColor": "#111111",
+            "fontSize": 12,
+            "fontFamily": "Segoe UI Semibold"
+          }
+        ],
+        "labels": [
+          {
+            "fontColor": "#111111",
+            "fontSize": 10
+          }
+        ]
+      }
+    },
+    "card": {
+      "*": {
+        "labels": [
+          {
+            "fontColor": "#111111",
+            "fontSize": 22
+          }
+        ],
+        "categoryLabels": [
+          {
+            "fontColor": "#5A5A5A",
+            "fontSize": 10
+          }
+        ]
+      }
+    }
+  }
+}
