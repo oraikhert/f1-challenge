@@ -400,7 +400,7 @@ else "Lost Positions"
 | `Relationship Direction` | `driver_race_metrics` |
 | `Hypothesis Verdict` | `driver_race_metrics` |
 | `Median Relative Pace by Phase %` | `driver_race_phase_pace` |
-| `Selected Driver Lap Time ms` | `lap_times` |
+| `Selected Driver Median Lap Time ms` | `lap_times` |
 | `Peloton Median Lap Time ms` | `lap_times` |
 
 ### Базовые KPI
@@ -558,8 +558,8 @@ RETURN
 Создайте эти меры в таблице `lap_times`.
 
 ```DAX
-Selected Driver Lap Time ms =
-AVERAGE(lap_times[lap_time_ms])
+Selected Driver Median Lap Time ms =
+MEDIAN(lap_times[lap_time_ms])
 ```
 
 ```DAX
@@ -570,7 +570,7 @@ CALCULATE(
 )
 ```
 
-Эти меры нужны для страницы `Driver and Race Drilldown`: первая показывает время круга выбранного пилота, а вторая показывает медианное время круга пелотона на том же круге.
+Эти меры нужны для страницы `Driver and Race Drilldown`: первая показывает медианное время круга выбранного пилота, а вторая показывает медианное время круга пелотона на том же круге. Если выбран один пилот и одна гонка, медиана выбранного пилота равна его фактическому времени на конкретном круге.
 
 ## 11. Настройте формат чисел
 
@@ -751,14 +751,14 @@ CALCULATE(
 
 Используйте меры, созданные в разделе 10 в таблице `lap_times`:
 
-- `Selected Driver Lap Time ms`;
+- `Selected Driver Median Lap Time ms`;
 - `Peloton Median Lap Time ms`.
 
 Создайте `Line chart`:
 
 - `X-axis`: `lap_times[lap_num]`;
 - `Y-axis`:
-  - `Selected Driver Lap Time ms`;
+  - `Selected Driver Median Lap Time ms`;
   - `Peloton Median Lap Time ms`.
 
 Этот график показывает, когда выбранный пилот был быстрее или медленнее медианного темпа пелотона.
