@@ -56,11 +56,11 @@ The first lap is excluded from the pace calculation because it reflects the star
 
 ### Relative Pace
 
-A driver's relative pace in a race phase is calculated as the deviation of the driver's average lap time from the median lap time of all drivers in the same race and the same phase.
+A driver's relative pace in a race phase is calculated as the deviation of the driver's median lap time from the median lap time of all drivers in the same race and the same phase.
 
 Example formula:
 
-`Relative Pace Phase % = Driver Avg Lap Time Phase / Field Median Lap Time Phase - 1`
+`Relative Pace Phase % = Driver Median Lap Time Phase / Field Median Lap Time Phase - 1`
 
 - a value below 0 means the driver was faster than the median field pace;
 - a value above 0 means the driver was slower than the median field pace.
@@ -68,6 +68,8 @@ Example formula:
 ### Late Pace Improvement
 
 `Late Pace Improvement = Avg(Relative Pace Initial, Relative Pace Middle) - Relative Pace Late`
+
+Here `Avg` means the arithmetic mean of the two already calculated relative pace values; it does not mean average lap time.
 
 - a positive value means the driver became faster relative to the field in the late phase;
 - a negative value means the driver became slower relative to the field in the late phase.
@@ -117,7 +119,7 @@ The following factors are simplified or not considered in this task statement:
 4. Weather conditions, wet track conditions, and track evolution are not included as separate features.
 5. Traffic, DRS, slipstream, and wheel-to-wheel battles are not modeled directly.
 6. Technical issues, penalties, and damage are captured only indirectly through final position, status, and lap times.
-7. Very slow laps may distort average pace, so outliers should be controlled or median-based indicators should be used.
+7. Very slow laps may still distort interpretation, but median-based pace indicators are used to reduce their influence; extreme outliers should still be reviewed.
 8. Drivers who do not have enough laps in all three race phases may be excluded from phase pace calculations.
 9. Races from 1950-1995 are excluded from the analysis because the current extract does not contain `lap_times.csv` data required to calculate phase-based relative pace.
 
@@ -143,9 +145,9 @@ The goal of this page is to show whether the pace profiles of drivers who gained
 
 Planned elements:
 
-- line chart: average relative pace by race phase for the `Gained Positions`, `No Change`, and `Lost Positions` groups;
+- line chart: median relative pace by race phase for the `Gained Positions`, `No Change`, and `Lost Positions` groups;
 - matrix/heatmap: drivers or teams as rows, race phases as columns, and relative pace as the value;
-- bar chart: difference between late pace and the average pace of the initial/middle phases;
+- bar chart: difference between late relative pace and the mean of the initial/middle relative pace values;
 - filters by season, race, team, and finishing status.
 
 ### Page 3. Driver and Race Drilldown: Driver or Race Breakdown
@@ -174,7 +176,7 @@ Planned elements:
 ## 10. Five-Minute Presentation Storyline
 
 1. Minute 1: state the question - does position gain come from real pace at the end of the race, or from other race circumstances?
-2. Minute 2: explain the method - split the race into initial, middle, and late phases, calculate relative pace against the field median, and compare it with position change.
+2. Minute 2: explain the method - split the race into initial, middle, and late phases, calculate median-based relative pace against the field median, and compare it with position change.
 3. Minute 3: show the overall result on the Executive Summary page - whether there is a relationship between `Position Gain` and `Late Pace Improvement`.
 4. Minute 4: move to Race Phase Pace and show how pace profiles differ between drivers who gained and lost positions.
 5. Minute 5: open Driver and Race Drilldown, show one concrete example, then return to the conclusion: the hypothesis is supported, rejected, or requires further clarification.
@@ -200,4 +202,3 @@ The dashboard should allow the Formula 1 team to:
 - test the relationship between position outcome and pace dynamics;
 - move from an aggregate conclusion to a specific driver or race;
 - separate the observed statistical relationship from possible race causes that are not directly represented in the dataset.
-

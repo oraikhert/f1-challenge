@@ -188,7 +188,7 @@ else null
 Относительный темп считается так:
 
 ```text
-Relative Pace Phase % = Driver Avg Lap Time Phase / Field Median Lap Time Phase - 1
+Relative Pace Phase % = Driver Median Lap Time Phase / Field Median Lap Time Phase - 1
 ```
 
 Важно: значение ниже 0 означает, что пилот быстрее медианы пелотона. Значение выше 0 означает, что пилот медленнее.
@@ -228,8 +228,28 @@ in
    - `driver_race_key`;
    - `race_phase`.
 7. Добавьте агрегаты:
-   - `driver_avg_lap_time_ms` -> `Average` по `lap_time_ms`;
+   - `driver_median_lap_time_ms` -> `Median` по `lap_time_ms`;
    - `phase_lap_count` -> `Count Rows`.
+
+Если в вашем Power BI в `Group By` нет операции `Median`, откройте `Advanced Editor` для таблицы `driver_race_phase_pace` и используйте такую группировку:
+
+```powerquery
+let
+    Source = lap_times_phase,
+    grouped_rows = Table.Group(
+        Source,
+        {"race_ID", "driver_ID", "driver_race_key", "race_phase"},
+        {
+            {"driver_median_lap_time_ms", each List.Median([lap_time_ms]), type number},
+            {"phase_lap_count", each Table.RowCount(_), Int64.Type}
+        }
+    )
+in
+    grouped_rows
+```
+
+Медиана по пилоту лучше защищает расчет от отдельных очень медленных кругов: пит-стопов, трафика, ошибок, повреждений или кругов с аномально высоким временем.
+
 8. Выполните `Merge Queries` с таблицей `field_median_race_phase`:
    - ключи: `race_ID` и `race_phase`;
    - тип соединения: `Left Outer`.
@@ -237,7 +257,7 @@ in
 10. Добавьте пользовательский столбец `relative_pace_pct`:
 
 ```powerquery
-[driver_avg_lap_time_ms] / [field_median_lap_time_ms] - 1
+[driver_median_lap_time_ms] / [field_median_lap_time_ms] - 1
 ```
 
 11. Добавьте столбец `phase_order`:
@@ -267,7 +287,7 @@ else null
 5. Выберите столбец `race_phase`.
 6. Нажмите `Transform` -> `Pivot Column`.
 7. В `Values Column` выберите `relative_pace_pct`.
-8. В `Advanced Options` выберите `Don't Aggregate`, если доступно. Если Power BI требует агрегат, выберите `Average`.
+8. В `Advanced Options` выберите `Don't Aggregate`, если доступно. Если Power BI требует агрегат, выберите `Average`: на этом этапе на одну гонку, одного пилота и одну фазу уже должна быть только одна строка, поэтому фактического усреднения кругов здесь не происходит.
 9. Переименуйте получившиеся столбцы:
    - `initial` -> `relative_pace_initial_pct`;
    - `middle` -> `relative_pace_middle_pct`;
@@ -301,6 +321,8 @@ else "Lost Positions"
 ```powerquery
 (([relative_pace_initial_pct] + [relative_pace_middle_pct]) / 2) - [relative_pace_late_pct]
 ```
+
+Здесь деление на 2 означает среднее двух уже рассчитанных фазовых значений `relative_pace_initial_pct` и `relative_pace_middle_pct`; это не среднее время круга.
 
 16. Отфильтруйте строки, где пустые значения есть в этих полях:
    - `starting_position_clean`;
