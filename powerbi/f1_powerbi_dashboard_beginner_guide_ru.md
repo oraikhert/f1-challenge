@@ -92,7 +92,15 @@ Text.From([year]) & " R" & Text.PadStart(Text.From([round]), 2, "0") & " - " & [
    - `result_ID`, `race_ID`, `driver_ID`, `constructor_ID` -> `Whole Number`;
    - `starting_position`, `race_position`, `points`, `total_laps`, `total_time_ms` -> числовой тип;
    - `status` -> `Text`.
-3. Добавьте пользовательский столбец `DriverRaceKey`:
+3. Добавьте пользовательский столбец `Starting Position Clean`:
+
+```powerquery
+if [starting_position] = 0 then null else [starting_position]
+```
+
+В этом датасете `starting_position = 0` не является реальной стартовой позицией. Это специальный код для случаев без обычного места на стартовой решетке: например, не прошел квалификацию, снялся, стартовал нестандартно или имеет другой особый статус. Оригинальное поле `starting_position` оставляем для аудита данных, а в расчетах используем `Starting Position Clean`.
+
+4. Добавьте пользовательский столбец `DriverRaceKey`:
 
 ```powerquery
 Text.From([race_ID]) & "-" & Text.From([driver_ID])
@@ -257,17 +265,19 @@ else null
 10. Выполните `Merge Queries` с таблицей `results` по ключу `DriverRaceKey`.
 11. Разверните из `results` только поля:
    - `constructor_ID`;
-   - `starting_position`;
+   - `Starting Position Clean`;
    - `race_position`;
    - `status`.
 12. Переименуйте:
-   - `starting_position` -> `Starting Position`;
+   - `Starting Position Clean` -> `Starting Position`;
    - `race_position` -> `Finish Position`.
 13. Добавьте пользовательский столбец `Position Gain`:
 
 ```powerquery
 [Starting Position] - [Finish Position]
 ```
+
+Здесь `Starting Position` уже означает очищенную стартовую позицию: все исходные `starting_position = 0` превращены в `null`, чтобы не считать ложную потерю позиций.
 
 14. Добавьте пользовательский столбец `Position Change Group`:
 
@@ -729,16 +739,17 @@ CALCULATE(
 
 ## 16. Финальная проверка дашборда
 
-Перед сдачей проверьте 8 вещей.
+Перед сдачей проверьте 9 вещей.
 
 1. В анализ попадают гонки с lap times, а не все гонки с 1950 года.
 2. `race_ID` нигде не используется как признак хронологии. Для времени используйте `year`, `round`, `race_date`.
 3. Первый круг исключен из расчета фазового темпа.
-4. `Position Gain` считается как `Starting Position - Finish Position`.
-5. Положительный `Position Gain` означает, что пилот отыграл позиции.
-6. Отрицательный `Relative Pace %` означает, что пилот быстрее медианного темпа пелотона.
-7. Положительный `Late Pace Improvement` означает улучшение позднего относительного темпа.
-8. При выборе сезона, гонки, пилота или конструктора все графики пересчитываются.
+4. Исходное `starting_position = 0` не используется как реальная позиция; для расчета создано поле `Starting Position Clean`.
+5. `Position Gain` считается как `Starting Position - Finish Position`, где `Starting Position` - очищенная стартовая позиция.
+6. Положительный `Position Gain` означает, что пилот отыграл позиции.
+7. Отрицательный `Relative Pace %` означает, что пилот быстрее медианного темпа пелотона.
+8. Положительный `Late Pace Improvement` означает улучшение позднего относительного темпа.
+9. При выборе сезона, гонки, пилота или конструктора все графики пересчитываются.
 
 ## 17. Как сформулировать итоговый вывод
 
@@ -766,6 +777,7 @@ CALCULATE(
 |---|---|
 | Использовать `race_ID` как порядок гонок | `race_ID` технический идентификатор, он не отражает календарь |
 | Не исключить первый круг | первый круг искажает темп из-за старта и борьбы |
+| Использовать `starting_position = 0` как реальную стартовую позицию | `0` означает отсутствие обычной стартовой позиции и искажает `Position Gain` |
 | Перепутать знак `Relative Pace %` | меньше 0 означает быстрее, а не хуже |
 | Перепутать формулу `Position Gain` | нужно `Starting Position - Finish Position`, а не наоборот |
 | Считать средний темп по всем гонкам без фаз | гипотеза именно про изменение темпа по ходу гонки |
