@@ -60,7 +60,7 @@
 
 Пример формулы:
 
-`Relative Pace Phase % = Driver Median Lap Time Phase / Field Median Lap Time Phase - 1`
+`Relative Pace Phase % = Driver Median Lap Time Phase / Peloton Median Lap Time Phase - 1`
 
 - значение ниже 0 означает, что пилот был быстрее медианного темпа пелотона;
 - значение выше 0 означает, что пилот был медленнее медианного темпа пелотона.

@@ -60,10 +60,10 @@ A driver's relative pace in a race phase is calculated as the deviation of the d
 
 Example formula:
 
-`Relative Pace Phase % = Driver Median Lap Time Phase / Field Median Lap Time Phase - 1`
+`Relative Pace Phase % = Driver Median Lap Time Phase / Peloton Median Lap Time Phase - 1`
 
-- a value below 0 means the driver was faster than the median field pace;
-- a value above 0 means the driver was slower than the median field pace.
+- a value below 0 means the driver was faster than the median peloton pace;
+- a value above 0 means the driver was slower than the median peloton pace.
 
 ### Late Pace Improvement
 
@@ -71,8 +71,8 @@ Example formula:
 
 Here `Avg` means the arithmetic mean of the two already calculated relative pace values; it does not mean average lap time.
 
-- a positive value means the driver became faster relative to the field in the late phase;
-- a negative value means the driver became slower relative to the field in the late phase.
+- a positive value means the driver became faster relative to the peloton in the late phase;
+- a negative value means the driver became slower relative to the peloton in the late phase.
 
 ## 6. Metrics for Testing the Hypothesis
 
@@ -159,7 +159,7 @@ Planned elements:
 - table of drivers in the selected race: start, finish, `Position Gain`, relative pace by phase, and `Late Pace Improvement`;
 - lap-by-lap line chart: driver's position on each lap;
 - lap-by-lap line chart: lap time or relative lap pace;
-- comparison of the selected driver against the field median;
+- comparison of the selected driver against the peloton median;
 - ability to select one or multiple drivers for comparison.
 
 ### Page 4. Season and Constructor View: Effect Stability
@@ -176,7 +176,7 @@ Planned elements:
 ## 10. Five-Minute Presentation Storyline
 
 1. Minute 1: state the question - does position gain come from real pace at the end of the race, or from other race circumstances?
-2. Minute 2: explain the method - split the race into initial, middle, and late phases, calculate median-based relative pace against the field median, and compare it with position change.
+2. Minute 2: explain the method - split the race into initial, middle, and late phases, calculate median-based relative pace against the peloton median, and compare it with position change.
 3. Minute 3: show the overall result on the Executive Summary page - whether there is a relationship between `Position Gain` and `Late Pace Improvement`.
 4. Minute 4: move to Race Phase Pace and show how pace profiles differ between drivers who gained and lost positions.
 5. Minute 5: open Driver and Race Drilldown, show one concrete example, then return to the conclusion: the hypothesis is supported, rejected, or requires further clarification.
@@ -185,7 +185,7 @@ Planned elements:
 
 If the hypothesis is supported, the final conclusion may be stated as follows:
 
-"In the analyzed period, drivers who gained positions from start to finish were, on average, faster relative to the field in the late phase of the race than in the initial and middle phases. A positive relationship is observed between the number of positions gained and late pace improvement. This means that late-race pace may be one indicator of successful position gain, although by itself it does not prove causality without accounting for strategy, pit stops, tires, and race incidents."
+"In the analyzed period, drivers who gained positions from start to finish were, on average, faster relative to the peloton in the late phase of the race than in the initial and middle phases. A positive relationship is observed between the number of positions gained and late pace improvement. This means that late-race pace may be one indicator of successful position gain, although by itself it does not prove causality without accounting for strategy, pit stops, tires, and race incidents."
 
 ## 12. Example Conclusion if the Hypothesis Is Rejected
 

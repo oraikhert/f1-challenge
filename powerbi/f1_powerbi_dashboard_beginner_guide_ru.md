@@ -188,16 +188,16 @@ else null
 Относительный темп считается так:
 
 ```text
-Relative Pace Phase % = Driver Median Lap Time Phase / Field Median Lap Time Phase - 1
+Relative Pace Phase % = Driver Median Lap Time Phase / Peloton Median Lap Time Phase - 1
 ```
 
 Важно: значение ниже 0 означает, что пилот быстрее медианы пелотона. Значение выше 0 означает, что пилот медленнее.
 
-### 6.1. Создайте таблицу `field_median_race_phase`
+### 6.1. Создайте таблицу `peloton_median_race_phase`
 
 1. Правый клик по `lap_times_phase`.
 2. Выберите `Reference`.
-3. Переименуйте таблицу в `field_median_race_phase`.
+3. Переименуйте таблицу в `peloton_median_race_phase`.
 4. Откройте `Advanced Editor`.
 5. Используйте такую логику группировки:
 
@@ -207,7 +207,7 @@ let
     grouped_rows = Table.Group(
         Source,
         {"race_ID", "race_phase"},
-        {{"field_median_lap_time_ms", each List.Median([lap_time_ms]), type number}}
+        {{"peloton_median_lap_time_ms", each List.Median([lap_time_ms]), type number}}
     )
 in
     grouped_rows
@@ -250,14 +250,14 @@ in
 
 Медиана по пилоту лучше защищает расчет от отдельных очень медленных кругов: пит-стопов, трафика, ошибок, повреждений или кругов с аномально высоким временем.
 
-8. Выполните `Merge Queries` с таблицей `field_median_race_phase`:
+8. Выполните `Merge Queries` с таблицей `peloton_median_race_phase`:
    - ключи: `race_ID` и `race_phase`;
    - тип соединения: `Left Outer`.
-9. Разверните столбец `field_median_lap_time_ms`.
+9. Разверните столбец `peloton_median_lap_time_ms`.
 10. Добавьте пользовательский столбец `relative_pace_pct`:
 
 ```powerquery
-[driver_median_lap_time_ms] / [field_median_lap_time_ms] - 1
+[driver_median_lap_time_ms] / [peloton_median_lap_time_ms] - 1
 ```
 
 11. Добавьте столбец `phase_order`:
@@ -354,7 +354,7 @@ else "Lost Positions"
 | `results` | можно не загружать |
 | `race_lap_count` | нет |
 | `lap_times_phase` | нет |
-| `field_median_race_phase` | нет |
+| `peloton_median_race_phase` | нет |
 
 После этого нажмите `Close & Apply`.
 
@@ -710,7 +710,7 @@ AVERAGE(lap_times[lap_time_ms])
 Добавьте еще одну меру:
 
 ```DAX
-Field Median Lap Time ms =
+Peloton Median Lap Time ms =
 CALCULATE(
     MEDIAN(lap_times[lap_time_ms]),
     REMOVEFILTERS(drivers)
@@ -722,7 +722,7 @@ CALCULATE(
 - `X-axis`: `lap_times[lap_num]`;
 - `Y-axis`:
   - `Selected Driver Lap Time ms`;
-  - `Field Median Lap Time ms`.
+  - `Peloton Median Lap Time ms`.
 
 Этот график показывает, когда выбранный пилот был быстрее или медленнее медианного темпа пелотона.
 
