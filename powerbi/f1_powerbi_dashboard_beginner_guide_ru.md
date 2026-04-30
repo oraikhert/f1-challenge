@@ -381,9 +381,31 @@ else "Lost Positions"
 
 ## 10. Создайте DAX-меры
 
-Откройте таблицу `driver_race_metrics`, нажмите `New measure` и добавьте меры ниже.
+Ниже указано, в какой таблице создавать каждую меру. Чтобы создать меру, выберите нужную таблицу в панели `Data`, нажмите `New measure` и вставьте DAX-код.
+
+В Power BI мера технически может лежать почти в любой таблице, но для порядка храните ее рядом с таблицей, на которой она в основном считается:
+
+| Мера | Где создать |
+|---|---|
+| `Race Count` | `driver_race_metrics` |
+| `Driver-Race Observations` | `driver_race_metrics` |
+| `Average Position Gain` | `driver_race_metrics` |
+| `Median Position Gain` | `driver_race_metrics` |
+| `Median Late Pace Improvement` | `driver_race_metrics` |
+| `Median Relative Pace Initial %` | `driver_race_metrics` |
+| `Median Relative Pace Middle %` | `driver_race_metrics` |
+| `Median Relative Pace Late %` | `driver_race_metrics` |
+| `Group Difference Late Improvement` | `driver_race_metrics` |
+| `Correlation Position Gain vs Late Pace Improvement` | `driver_race_metrics` |
+| `Relationship Direction` | `driver_race_metrics` |
+| `Hypothesis Verdict` | `driver_race_metrics` |
+| `Median Relative Pace by Phase %` | `driver_race_phase_pace` |
+| `Selected Driver Lap Time ms` | `lap_times` |
+| `Peloton Median Lap Time ms` | `lap_times` |
 
 ### Базовые KPI
+
+Создайте эти меры в таблице `driver_race_metrics`.
 
 ```DAX
 Race Count =
@@ -436,6 +458,8 @@ MEDIAN(driver_race_phase_pace[relative_pace_pct])
 
 ### Разница между группами
 
+Создайте эту меру в таблице `driver_race_metrics`.
+
 ```DAX
 Group Difference Late Improvement =
 VAR Gained =
@@ -455,6 +479,8 @@ RETURN
 Положительное значение означает, что группа пилотов, отыгравших позиции, сильнее улучшила поздний темп, чем остальные.
 
 ### Корреляция между `position_gain` и `late_pace_improvement`
+
+Создайте эту меру в таблице `driver_race_metrics`.
 
 ```DAX
 Correlation Position Gain vs Late Pace Improvement =
@@ -492,6 +518,8 @@ RETURN
 
 ### Направление связи
 
+Создайте эту меру в таблице `driver_race_metrics`.
+
 ```DAX
 Relationship Direction =
 VAR Corr = [Correlation Position Gain vs Late Pace Improvement]
@@ -506,6 +534,8 @@ RETURN
 ```
 
 ### Текстовый вердикт по гипотезе
+
+Создайте эту меру в таблице `driver_race_metrics`.
 
 ```DAX
 Hypothesis Verdict =
@@ -522,6 +552,25 @@ RETURN
 ```
 
 Порог `0.10` выбран как простой ориентир для учебного дашборда. Его можно изменить, если в проекте будет принято другое правило.
+
+### Меры для графика времени круга
+
+Создайте эти меры в таблице `lap_times`.
+
+```DAX
+Selected Driver Lap Time ms =
+AVERAGE(lap_times[lap_time_ms])
+```
+
+```DAX
+Peloton Median Lap Time ms =
+CALCULATE(
+    MEDIAN(lap_times[lap_time_ms]),
+    REMOVEFILTERS(drivers)
+)
+```
+
+Эти меры нужны для страницы `Driver and Race Drilldown`: первая показывает время круга выбранного пилота, а вторая показывает медианное время круга пелотона на том же круге.
 
 ## 11. Настройте формат чисел
 
@@ -700,22 +749,10 @@ RETURN
 
 ### 14.4. График времени круга
 
-Добавьте меру в таблице `lap_times`:
+Используйте меры, созданные в разделе 10 в таблице `lap_times`:
 
-```DAX
-Selected Driver Lap Time ms =
-AVERAGE(lap_times[lap_time_ms])
-```
-
-Добавьте еще одну меру:
-
-```DAX
-Peloton Median Lap Time ms =
-CALCULATE(
-    MEDIAN(lap_times[lap_time_ms]),
-    REMOVEFILTERS(drivers)
-)
-```
+- `Selected Driver Lap Time ms`;
+- `Peloton Median Lap Time ms`.
 
 Создайте `Line chart`:
 
