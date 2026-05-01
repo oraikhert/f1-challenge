@@ -173,10 +173,11 @@ The goal of this page is to allow the team to validate the aggregate finding thr
 Planned elements:
 
 - table of drivers in the selected race: start, finish, `Position Gain`, relative pace by phase, `Late vs Middle Pace Improvement`, `Late vs Initial Pace Improvement`, and reference `Late Pace Improvement`;
-- lap-by-lap line chart: driver's position on each lap;
-- lap-by-lap line chart: lap time or relative lap pace;
+- lap-by-lap line chart: driver position from the starting grid (`lap = 0`) to the final lap;
+- lap-by-lap line chart: selected drivers' relative pace against the peloton median;
 - comparison of the selected driver against the peloton median;
-- ability to select one or multiple drivers for comparison.
+- ability to select one or multiple drivers for comparison;
+- finishing-status filtering for lap-level charts to exclude non-representative statuses such as large lap deficits or retirements.
 
 ### Page 4. Season and Constructor View: Effect Stability
 

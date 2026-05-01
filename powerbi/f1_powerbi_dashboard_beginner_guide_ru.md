@@ -127,6 +127,13 @@ Text.From([race_ID]) & "-" & Text.From([driver_ID])
 Text.From([race_ID]) & "-" & Text.From([driver_ID])
 ```
 
+3. Выполните `Merge Queries` с таблицей `results` по ключу `driver_race_key`.
+4. Разверните из `results` только поле `status`.
+5. Переименуйте новое поле:
+   - `status` -> `race_status`.
+
+Это поле нужно для lap-level графиков на странице `Driver and Race Drilldown`. Фильтр по `driver_race_metrics[status]` не обязан фильтровать таблицу `lap_times`, потому что это разные факт-таблицы. Поэтому статус для графиков должен быть доступен прямо в `lap_times`.
+
 ## 5. Создайте фазы гонки
 
 Нужно разделить каждую гонку на 3 фазы:
@@ -352,6 +359,69 @@ else "Lost Positions"
 
 Положительный `late_vs_middle_pace_improvement` означает, что в поздней фазе пилот стал быстрее относительно пелотона, чем был в средней фазе.
 
+### 7.1. Создайте таблицу `driver_race_position_timeline`
+
+Эта таблица нужна для графика `Race Position by Lap` на странице `Driver and Race Drilldown`. Обычная таблица `lap_times` начинается с `lap_num = 1`, а это позиция пилота уже в конце первого круга. Чтобы показать стартовую решетку, добавим искусственную точку `lap_num = 0` из таблицы `results`.
+
+#### Часть 1: позиции по кругам
+
+1. Правый клик по `lap_times`.
+2. Выберите `Reference`.
+3. Переименуйте таблицу в `position_timeline_laps`.
+4. Оставьте только столбцы:
+   - `race_ID`;
+   - `driver_ID`;
+   - `driver_race_key`;
+   - `lap_num`;
+   - `position`;
+   - `race_status`.
+5. Добавьте пользовательский столбец `position_point_type`:
+
+```powerquery
+"Lap Position"
+```
+
+#### Часть 2: стартовая позиция
+
+1. Правый клик по `results`.
+2. Выберите `Reference`.
+3. Переименуйте таблицу в `position_timeline_start`.
+4. Оставьте только столбцы:
+   - `race_ID`;
+   - `driver_ID`;
+   - `driver_race_key`;
+   - `starting_position_clean`;
+   - `status`.
+5. Переименуйте:
+   - `starting_position_clean` -> `position`;
+   - `status` -> `race_status`.
+6. Добавьте пользовательский столбец `lap_num`:
+
+```powerquery
+0
+```
+
+7. Добавьте пользовательский столбец `position_point_type`:
+
+```powerquery
+"Start Grid"
+```
+
+8. Отфильтруйте строки, где `position` пустой.
+
+#### Часть 3: объединение
+
+1. Выберите `Append Queries as New`.
+2. Объедините:
+   - `position_timeline_laps`;
+   - `position_timeline_start`.
+3. Назовите новую таблицу `driver_race_position_timeline`.
+4. Проверьте типы:
+   - `race_ID`, `driver_ID`, `lap_num`, `position` -> `Whole Number`;
+   - `driver_race_key`, `race_status`, `position_point_type` -> `Text`.
+
+После этого график позиции будет начинаться с `lap_num = 0`, где `position` означает стартовую позицию. Например, если пилот стартовал с `P6`, а на первом круге уже был `P3`, линия покажет переход `P6 -> P3` между `lap_num = 0` и `lap_num = 1`.
+
 ## 8. Оставьте только нужные таблицы для модели
 
 В Power Query можно отключить загрузку вспомогательных таблиц:
@@ -369,10 +439,13 @@ else "Lost Positions"
 | `lap_times` | да |
 | `driver_race_metrics` | да |
 | `driver_race_phase_pace` | да |
+| `driver_race_position_timeline` | да |
 | `results` | можно не загружать |
 | `race_lap_count` | нет |
 | `lap_times_phase` | нет |
 | `peloton_median_race_phase` | нет |
+| `position_timeline_laps` | нет |
+| `position_timeline_start` | нет |
 
 После этого нажмите `Close & Apply`.
 
@@ -388,6 +461,8 @@ else "Lost Positions"
 | `driver_race_metrics[driver_race_key]` | `driver_race_phase_pace[driver_race_key]` | one-to-many |
 | `races[race_ID]` | `lap_times[race_ID]` | one-to-many |
 | `drivers[driver_ID]` | `lap_times[driver_ID]` | one-to-many |
+| `races[race_ID]` | `driver_race_position_timeline[race_ID]` | one-to-many |
+| `drivers[driver_ID]` | `driver_race_position_timeline[driver_ID]` | one-to-many |
 
 Направление фильтрации оставьте стандартным: от таблицы `one` к таблице `many`.
 
@@ -424,6 +499,7 @@ else "Lost Positions"
 | `Median Relative Pace by Phase %` | `driver_race_phase_pace` |
 | `Selected Driver Median Lap Time ms` | `lap_times` |
 | `Peloton Median Lap Time ms` | `lap_times` |
+| `Selected Driver Relative Lap Pace vs Peloton %` | `lap_times` |
 
 ### Базовые KPI
 
@@ -668,7 +744,7 @@ RETURN
 
 Порог `0.10` выбран как простой ориентир для учебного дашборда, чтобы не считать микроскопическую положительную связь подтверждением гипотезы. Его можно изменить, если в проекте будет принято другое правило.
 
-### Меры для графика времени круга
+### Меры для графика относительного темпа по кругам
 
 Создайте эти меры в таблице `lap_times`.
 
@@ -685,7 +761,27 @@ CALCULATE(
 )
 ```
 
-Эти меры нужны для страницы `Driver and Race Drilldown`: первая показывает медианное время круга выбранного пилота, а вторая показывает медианное время круга пелотона на том же круге. Если выбран один пилот и одна гонка, медиана выбранного пилота равна его фактическому времени на конкретном круге.
+```DAX
+Selected Driver Relative Lap Pace vs Peloton % =
+VAR DriverLapTime = [Selected Driver Median Lap Time ms]
+VAR PelotonLapTime = [Peloton Median Lap Time ms]
+RETURN
+    IF(
+        ISBLANK(DriverLapTime) || ISBLANK(PelotonLapTime),
+        BLANK(),
+        DIVIDE(DriverLapTime - PelotonLapTime, PelotonLapTime)
+    )
+```
+
+Эти меры нужны для страницы `Driver and Race Drilldown`. Первая мера показывает время круга выбранного пилота, вторая показывает медианное время круга пелотона на том же круге, а третья переводит разницу в относительный процент.
+
+Интерпретация `Selected Driver Relative Lap Pace vs Peloton %`:
+
+- значение ниже 0: пилот быстрее медианного темпа пелотона на этом круге;
+- значение около 0: пилот едет примерно как пелотон;
+- значение выше 0: пилот медленнее пелотона.
+
+Проверка `ISBLANK` обязательна. Если ее не добавить, Power BI может построить ложные линии для пилотов, которых не было в выбранной гонке: пустое время пилота превращается в 0, и график показывает искусственные `-100%`.
 
 ### Дополнительные столбцы для tooltip scatter plot
 
@@ -724,6 +820,7 @@ RELATED(constructors[constructor_name])
 - `Median Late vs Initial Pace Improvement`;
 - `Median Late Pace Improvement`;
 - `Median Relative Pace by Phase %`;
+- `Selected Driver Relative Lap Pace vs Peloton %`;
 - `Group Difference Late Improvement`.
 
 Рекомендуемое количество знаков после запятой: 2.
@@ -886,6 +983,8 @@ RELATED(constructors[constructor_name])
 
 Для этой страницы удобно выбирать одну гонку и 1-3 пилотов.
 
+Если используете фильтр по статусу финиша, помните: `driver_race_metrics[status]` фильтрует таблицу пилотов, но не обязан фильтровать lap-level графики. Для графиков ниже задавайте status-фильтры на уровне самих визуалов через `lap_times[race_status]` и `driver_race_position_timeline[race_status]`.
+
 ### 14.2. Таблица пилотов в гонке
 
 Добавьте `Table`:
@@ -910,27 +1009,58 @@ RELATED(constructors[constructor_name])
 
 Добавьте `Line chart`:
 
-- `X-axis`: `lap_times[lap_num]`;
-- `Y-axis`: `Average of lap_times[position]`;
+- `X-axis`: `driver_race_position_timeline[lap_num]`;
+- `Y-axis`: `Average of driver_race_position_timeline[position]`;
 - `Legend`: `drivers[driver_name]`.
+
+Переименуйте визуал в `Race Position by Lap`.
 
 В настройках оси Y включите обратный порядок, если доступно: позиция 1 должна быть наверху, а не внизу.
 
-### 14.4. График времени круга
+Добавьте в `Tooltips`:
 
-Используйте меры, созданные в разделе 10 в таблице `lap_times`:
+- `driver_race_position_timeline[position_point_type]`.
 
-- `Selected Driver Median Lap Time ms`;
-- `Peloton Median Lap Time ms`.
+Добавьте visual-level filter:
+
+- `driver_race_position_timeline[race_status]` -> оставьте статусы, которые хотите анализировать, например `Finished`, `+1 Lap`, `+2 Laps`.
+
+На этом графике `lap_num = 0` означает стартовую решетку, а `lap_num = 1` означает позицию в конце первого круга. Поэтому если пилот стартовал с `P6`, но на первом круге уже был `P3`, линия покажет переход `P6 -> P3`.
+
+### 14.4. График относительного темпа по кругам
+
+Используйте меру, созданную в разделе 10 в таблице `lap_times`:
+
+- `Selected Driver Relative Lap Pace vs Peloton %`.
 
 Создайте `Line chart`:
 
 - `X-axis`: `lap_times[lap_num]`;
-- `Y-axis`:
-  - `Selected Driver Median Lap Time ms`;
-  - `Peloton Median Lap Time ms`.
+- `Y-axis`: `Selected Driver Relative Lap Pace vs Peloton %`;
+- `Legend`: `drivers[driver_name]`.
 
-Этот график показывает, когда выбранный пилот был быстрее или медленнее медианного темпа пелотона.
+Переименуйте визуал в `Relative Lap Pace vs Peloton by Lap`.
+
+Добавьте visual-level filter:
+
+- `lap_times[race_status]` -> оставьте статусы, которые хотите анализировать, например `Finished`, `+1 Lap`, `+2 Laps`;
+- `Selected Driver Relative Lap Pace vs Peloton %` -> `is not blank`.
+
+Проверьте, что для поля `drivers[driver_name]` выключена настройка `Show items with no data`. Иначе Power BI может пытаться показать пилотов из справочника, у которых нет кругов в выбранной гонке.
+
+В `Analytics` добавьте горизонтальную линию:
+
+- `Y-axis constant line`;
+- `Value`: `0`;
+- подпись: `Peloton median` или `0% = peloton`.
+
+Этот график показывает, когда выбранный пилот был быстрее или медленнее медианного темпа пелотона:
+
+- ниже 0 - быстрее пелотона;
+- около 0 - примерно как пелотон;
+- выше 0 - медленнее пелотона.
+
+Если выбрать несколько пилотов, `drivers[driver_name]` в `Legend` построит отдельную линию для каждого пилота. Это лучше, чем одна агрегированная линия по выбранной группе.
 
 ## 15. Страница 4: `Season and Constructor View`
 
