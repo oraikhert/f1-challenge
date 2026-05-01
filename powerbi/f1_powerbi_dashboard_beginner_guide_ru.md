@@ -572,6 +572,27 @@ CALCULATE(
 
 Эти меры нужны для страницы `Driver and Race Drilldown`: первая показывает медианное время круга выбранного пилота, а вторая показывает медианное время круга пелотона на том же круге. Если выбран один пилот и одна гонка, медиана выбранного пилота равна его фактическому времени на конкретном круге.
 
+### Дополнительные столбцы для tooltip scatter plot
+
+Создайте эти calculated columns в таблице `driver_race_metrics`:
+
+```DAX
+Driver =
+RELATED(drivers[driver_name])
+```
+
+```DAX
+Race =
+RELATED(races[race_label])
+```
+
+```DAX
+Constructor =
+RELATED(constructors[constructor_name])
+```
+
+Эти столбцы нужны для tooltip на scatter plot. Точка на scatter plot строится на уровне строки из `driver_race_metrics`, поэтому в tooltip безопаснее использовать текстовые поля из этой же таблицы. Если добавить в tooltip напрямую `drivers[driver_name]`, `races[race_label]` или `constructors[constructor_name]`, Power BI может показать неверное значение вроде `First driver_name`, потому что фильтр от точки scatter plot не обязан возвращаться обратно в справочник при направлении связи `Single`.
+
 ## 11. Настройте формат чисел
 
 В `Model view` или `Data view` задайте формат `Percentage` для полей:
@@ -621,16 +642,20 @@ CALCULATE(
 
 Добавьте `Scatter chart`:
 
-- `X-axis`: `driver_race_metrics[position_gain]`;
-- `Y-axis`: `driver_race_metrics[late_pace_improvement]`;
-- `Details`: `driver_race_metrics[driver_race_key]`;
+- `Values`: `driver_race_metrics[driver_race_key]`;
+- `X-axis`: `driver_race_metrics[position_gain]`, summarization `Average`;
+- `Y-axis`: `driver_race_metrics[late_pace_improvement]`, summarization `Average`;
 - `Legend`: `driver_race_metrics[position_change_group]`;
 - `Tooltips`:
-  - `drivers[driver_name]`;
-  - `races[race_label]`;
-  - `constructors[constructor_name]`;
+  - `driver_race_metrics[Driver]`;
+  - `driver_race_metrics[Race]`;
+  - `driver_race_metrics[Constructor]`;
   - `driver_race_metrics[starting_position_clean]`;
   - `driver_race_metrics[finish_position]`.
+
+В некоторых версиях Power BI поле для детализации scatter chart называется `Values`, а не `Details`. После добавления `driver_race_key` в `Values` Power BI может попросить агрегировать оси X и Y. Выберите `Average` для обеих осей. Это корректно, потому что в `driver_race_metrics` один `driver_race_key` должен соответствовать одной строке, значит среднее по этой строке равно исходному значению.
+
+Не включайте `Both` для связей только ради tooltip. Для этой модели нормальное направление фильтрации - `Single`; текстовые поля для tooltip решаются через calculated columns выше.
 
 В настройках `Analytics` добавьте `Trend line`, если она доступна.
 
