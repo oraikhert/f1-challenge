@@ -162,7 +162,7 @@ The goal of this page is to show whether the pace profiles of drivers who gained
 Planned elements:
 
 - line chart: median relative pace by race phase for the `Gained Positions`, `No Change`, and `Lost Positions` groups;
-- matrix/heatmap: drivers or teams as rows, race phases as columns, and relative pace as the value;
+- table of drivers in the selected race: `Position Gain`, relative pace by phase, and `Late vs Middle Pace Improvement`;
 - bar chart: difference between late relative pace and middle-phase relative pace;
 - filters by season, race, team, and finishing status.
 

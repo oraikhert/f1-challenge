@@ -825,18 +825,37 @@ RELATED(constructors[constructor_name])
 
 Важно: на этом графике линия ниже 0 означает более быстрый темп.
 
-### 13.2. Matrix или heatmap
+### 13.2. Таблица пилотов по выбранной гонке
 
-Добавьте `Matrix`:
+Добавьте `Table`.
 
-- `Rows`: `drivers[driver_name]` или `constructors[constructor_name]`;
-- `Columns`: `driver_race_phase_pace[race_phase]`;
-- `Values`: `Median Relative Pace by Phase %`.
+Поля таблицы:
 
-Включите `Conditional formatting`:
+- `drivers[driver_name]`;
+- `driver_race_metrics[position_gain]`;
+- `driver_race_metrics[relative_pace_initial_pct]`;
+- `driver_race_metrics[relative_pace_middle_pct]`;
+- `driver_race_metrics[relative_pace_late_pct]`;
+- `driver_race_metrics[late_vs_middle_pace_improvement]`.
 
-- отрицательные значения выделяйте зеленым;
-- положительные значения выделяйте красным.
+Рекомендуемые названия колонок:
+
+- `Driver`;
+- `Position Gain`;
+- `Initial Pace`;
+- `Middle Pace`;
+- `Late Pace`;
+- `Late vs Middle`.
+
+Отсортируйте таблицу по `Position Gain` по убыванию. Так сверху будут пилоты, которые отыграли больше всего позиций, а снизу - пилоты, которые больше всего позиций потеряли.
+
+Включите `Conditional formatting` для колонок `Initial Pace`, `Middle Pace`, `Late Pace` и `Late vs Middle`:
+
+- отрицательные значения выделяйте синим или зеленым, потому что более низкий относительный темп означает, что пилот быстрее пелотона;
+- положительные значения выделяйте красным, потому что более высокий относительный темп означает, что пилот медленнее пелотона;
+- значения около 0 можно оставить нейтральными.
+
+Эта таблица нужна не для общей проверки гипотезы, а для объяснения, какие конкретные пилоты сформировали линии и групповые медианы на странице.
 
 ### 13.3. Bar chart по улучшению позднего темпа
 
