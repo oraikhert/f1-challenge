@@ -1,6 +1,6 @@
 # Пошаговая инструкция по созданию Power BI дашборда Formula 1 Driver Pace Analysis
 
-Эта инструкция помогает с нуля собрать Power BI дашборд по заданию из `f1_powerbi_task_statement_en.md`. Цель дашборда - проверить гипотезу: связаны ли отыгранные позиции от старта к финишу с улучшением относительного темпа пилота в поздней фазе гонки.
+Эта инструкция помогает с нуля собрать Power BI дашборд по заданию из `f1_powerbi_task_statement_en.md`. Цель дашборда - проверить гипотезу: связаны ли отыгранные позиции от старта к финишу с улучшением относительного темпа пилота в поздней фазе гонки относительно средней фазы.
 
 ## 1. Что должно получиться
 
@@ -49,9 +49,9 @@
 Чтобы модель была предсказуемой, используйте единый стиль:
 
 - исходные таблицы и столбцы оставляйте как в CSV: `lap_times`, `driver_ID`, `starting_position`;
-- новые технические таблицы и столбцы называйте в `snake_case`: `driver_race_key`, `race_phase`, `late_pace_improvement`;
+- новые технические таблицы и столбцы называйте в `snake_case`: `driver_race_key`, `race_phase`, `late_vs_middle_pace_improvement`;
 - значения категорий, которые видны в легендах и фильтрах, оставляйте человекочитаемыми: `Gained Positions`, `No Change`, `Lost Positions`;
-- DAX-меры можно называть человекочитаемо: `Race Count`, `Median Late Pace Improvement`;
+- DAX-меры можно называть человекочитаемо: `Race Count`, `Median Late vs Middle Pace Improvement`;
 - в визуалах можно переименовать поле только для конкретного графика через `Rename for this visual`, например показать `driver_name` как `Driver`.
 
 ### Таблица `races`
@@ -316,23 +316,41 @@ else if [position_gain] = 0 then "No Change"
 else "Lost Positions"
 ```
 
-15. Добавьте пользовательский столбец `late_pace_improvement`:
+15. Добавьте пользовательский столбец `late_vs_middle_pace_improvement`:
+
+```powerquery
+[relative_pace_middle_pct] - [relative_pace_late_pct]
+```
+
+Это основная метрика для проверки гипотезы. Положительное значение означает, что в поздней фазе пилот стал быстрее относительно пелотона, чем был в средней фазе.
+
+16. Добавьте пользовательский столбец `late_vs_initial_pace_improvement`:
+
+```powerquery
+[relative_pace_initial_pct] - [relative_pace_late_pct]
+```
+
+Это справочная метрика. Она показывает улучшение позднего относительного темпа относительно начальной фазы, но не используется в основном вердикте.
+
+17. Добавьте пользовательский столбец `late_pace_improvement`:
 
 ```powerquery
 (([relative_pace_initial_pct] + [relative_pace_middle_pct]) / 2) - [relative_pace_late_pct]
 ```
 
-Здесь деление на 2 означает среднее двух уже рассчитанных фазовых значений `relative_pace_initial_pct` и `relative_pace_middle_pct`; это не среднее время круга.
+Это старая summary-метрика. Она сохраняется для сравнения и истории, но не используется в основном `Hypothesis Verdict`. Здесь деление на 2 означает среднее двух уже рассчитанных фазовых значений `relative_pace_initial_pct` и `relative_pace_middle_pct`; это не среднее время круга.
 
-16. Отфильтруйте строки, где пустые значения есть в этих полях:
+18. Отфильтруйте строки, где пустые значения есть в этих полях:
    - `starting_position_clean`;
    - `finish_position`;
    - `relative_pace_initial_pct`;
    - `relative_pace_middle_pct`;
    - `relative_pace_late_pct`;
+   - `late_vs_middle_pace_improvement`;
+   - `late_vs_initial_pace_improvement`;
    - `late_pace_improvement`.
 
-Положительный `late_pace_improvement` означает, что в поздней фазе пилот стал быстрее относительно пелотона.
+Положительный `late_vs_middle_pace_improvement` означает, что в поздней фазе пилот стал быстрее относительно пелотона, чем был в средней фазе.
 
 ## 8. Оставьте только нужные таблицы для модели
 
@@ -391,13 +409,15 @@ else "Lost Positions"
 | `Driver-Race Observations` | `driver_race_metrics` |
 | `Average Position Gain` | `driver_race_metrics` |
 | `Median Position Gain` | `driver_race_metrics` |
+| `Median Late vs Middle Pace Improvement` | `driver_race_metrics` |
+| `Gained Median Late vs Middle Pace Improvement` | `driver_race_metrics` |
+| `Median Late vs Initial Pace Improvement` | `driver_race_metrics`, справочная мера |
 | `Median Late Pace Improvement` | `driver_race_metrics` |
-| `Gained Median Late Pace Improvement` | `driver_race_metrics` |
 | `Median Relative Pace Initial %` | `driver_race_metrics` |
 | `Median Relative Pace Middle %` | `driver_race_metrics` |
 | `Median Relative Pace Late %` | `driver_race_metrics` |
-| `Spearman Correlation Position Gain vs Late Pace Improvement` | `driver_race_metrics` |
-| `Pearson Correlation Position Gain vs Late Pace Improvement` | `driver_race_metrics` |
+| `Spearman Correlation Position Gain vs Late vs Middle Pace Improvement` | `driver_race_metrics` |
+| `Pearson Correlation Position Gain vs Late vs Middle Pace Improvement` | `driver_race_metrics`, справочная мера |
 | `Group Difference Late Improvement` | `driver_race_metrics`, справочная мера |
 | `Relationship Direction` | `driver_race_metrics` |
 | `Hypothesis Verdict` | `driver_race_metrics` |
@@ -430,19 +450,33 @@ MEDIAN(driver_race_metrics[position_gain])
 ```
 
 ```DAX
-Median Late Pace Improvement =
-MEDIAN(driver_race_metrics[late_pace_improvement])
+Median Late vs Middle Pace Improvement =
+MEDIAN(driver_race_metrics[late_vs_middle_pace_improvement])
 ```
 
 ```DAX
-Gained Median Late Pace Improvement =
+Gained Median Late vs Middle Pace Improvement =
 CALCULATE(
-    MEDIAN(driver_race_metrics[late_pace_improvement]),
+    MEDIAN(driver_race_metrics[late_vs_middle_pace_improvement]),
     driver_race_metrics[position_change_group] = "Gained Positions"
 )
 ```
 
-Эта мера показывает медианное улучшение позднего относительного темпа только у пилотов, которые улучшили финишную позицию относительно стартовой. Для гипотезы это главный прямой тест: если значение больше 0, значит типичный пилот из группы `Gained Positions` в поздней фазе ехал лучше относительно пелотона, чем в начальной и средней фазах.
+Эта мера показывает медианное улучшение позднего относительного темпа относительно средней фазы только у пилотов, которые улучшили финишную позицию относительно стартовой. Для гипотезы это главный прямой тест: если значение больше 0, значит типичный пилот из группы `Gained Positions` в поздней фазе ехал лучше относительно пелотона, чем в средней фазе.
+
+```DAX
+Median Late vs Initial Pace Improvement =
+MEDIAN(driver_race_metrics[late_vs_initial_pace_improvement])
+```
+
+Эта справочная мера показывает улучшение позднего относительного темпа относительно начальной фазы. Она помогает понять, насколько вывод зависит от шумной стартовой части гонки, но не используется в основном вердикте.
+
+```DAX
+Median Late Pace Improvement =
+MEDIAN(driver_race_metrics[late_pace_improvement])
+```
+
+`Median Late Pace Improvement` оставляем как старую summary-метрику для сравнения. В основном `Hypothesis Verdict` она не используется.
 
 ```DAX
 Median Relative Pace Initial % =
@@ -488,14 +522,14 @@ RETURN
     Gained - NotGained
 ```
 
-Положительное значение означает, что группа пилотов, отыгравших позиции, сильнее улучшила поздний темп, чем остальные. Это полезная справочная метрика, но она отвечает на более широкий вопрос сравнения групп. Текущая формулировка гипотезы напрямую требует проверить саму группу `Gained Positions` и направление связи между `position_gain` и `late_pace_improvement`, поэтому для основного дашборда используем `Gained Median Late Pace Improvement` и `Spearman Correlation Position Gain vs Late Pace Improvement`.
+Положительное значение означает, что группа пилотов, отыгравших позиции, сильнее улучшила поздний темп по старой summary-метрике, чем остальные. Это полезная справочная метрика, но она отвечает на более широкий вопрос сравнения групп и не участвует в новом основном вердикте. Для основного дашборда используем `Gained Median Late vs Middle Pace Improvement` и `Spearman Correlation Position Gain vs Late vs Middle Pace Improvement`.
 
-### Spearman-корреляция между `position_gain` и `late_pace_improvement`
+### Spearman-корреляция между `position_gain` и `late_vs_middle_pace_improvement`
 
 Создайте эту меру в таблице `driver_race_metrics`.
 
 ```DAX
-Spearman Correlation Position Gain vs Late Pace Improvement =
+Spearman Correlation Position Gain vs Late vs Middle Pace Improvement =
 VAR T =
     FILTER(
         ADDCOLUMNS(
@@ -505,7 +539,7 @@ VAR T =
                 driver_race_metrics[driver_ID]
             ),
             "X", CALCULATE(AVERAGE(driver_race_metrics[position_gain])),
-            "Y", CALCULATE(AVERAGE(driver_race_metrics[late_pace_improvement]))
+            "Y", CALCULATE(AVERAGE(driver_race_metrics[late_vs_middle_pace_improvement]))
         ),
         NOT ISBLANK([X]) && NOT ISBLANK([Y])
     )
@@ -550,7 +584,7 @@ RETURN
     DIVIDE(Numerator, Denominator)
 ```
 
-Spearman-корреляция смотрит не на сами значения, а на их порядок. Она отвечает на вопрос: если пилоты выше по `position_gain`, находятся ли они обычно выше и по `late_pace_improvement`. Это лучше подходит для текущей задачи, потому что данные Формулы 1 содержат выбросы: технические проблемы, аварии, очень медленные круги, пит-стопы и другие гоночные обстоятельства.
+Spearman-корреляция смотрит не на сами значения, а на их порядок. Она отвечает на вопрос: если пилоты выше по `position_gain`, находятся ли они обычно выше и по `late_vs_middle_pace_improvement`. Это лучше подходит для текущей задачи, потому что данные Формулы 1 содержат выбросы: технические проблемы, аварии, очень медленные круги, пит-стопы и другие гоночные обстоятельства.
 
 Интерпретация:
 
@@ -558,12 +592,12 @@ Spearman-корреляция смотрит не на сами значения
 - значение около 0: устойчивого направления связи не видно;
 - значение меньше 0: больше отыгранных позиций не связано с улучшением позднего относительного темпа.
 
-### Pearson-корреляция между `position_gain` и `late_pace_improvement`
+### Pearson-корреляция между `position_gain` и `late_vs_middle_pace_improvement`
 
 Создайте эту меру в таблице `driver_race_metrics`, если хотите сохранить старый расчет для сравнения. В новом основном вердикте она не используется.
 
 ```DAX
-Pearson Correlation Position Gain vs Late Pace Improvement =
+Pearson Correlation Position Gain vs Late vs Middle Pace Improvement =
 VAR T =
     FILTER(
         ADDCOLUMNS(
@@ -573,7 +607,7 @@ VAR T =
                 driver_race_metrics[driver_ID]
             ),
             "X", CALCULATE(AVERAGE(driver_race_metrics[position_gain])),
-            "Y", CALCULATE(AVERAGE(driver_race_metrics[late_pace_improvement]))
+            "Y", CALCULATE(AVERAGE(driver_race_metrics[late_vs_middle_pace_improvement]))
         ),
         NOT ISBLANK([X]) && NOT ISBLANK([Y])
     )
@@ -598,7 +632,7 @@ Pearson-корреляция измеряет линейную связь по �
 
 ```DAX
 Relationship Direction =
-VAR Corr = [Spearman Correlation Position Gain vs Late Pace Improvement]
+VAR Corr = [Spearman Correlation Position Gain vs Late vs Middle Pace Improvement]
 RETURN
     SWITCH(
         TRUE(),
@@ -615,8 +649,8 @@ RETURN
 
 ```DAX
 Hypothesis Verdict =
-VAR Spearman = [Spearman Correlation Position Gain vs Late Pace Improvement]
-VAR GainedMedian = [Gained Median Late Pace Improvement]
+VAR Spearman = [Spearman Correlation Position Gain vs Late vs Middle Pace Improvement]
+VAR GainedMedian = [Gained Median Late vs Middle Pace Improvement]
 RETURN
     SWITCH(
         TRUE(),
@@ -629,8 +663,8 @@ RETURN
 
 Новый вердикт использует два критерия:
 
-- `Gained Median Late Pace Improvement > 0`: пилоты, отыгравшие позиции, в поздней фазе действительно лучше относительно пелотона, чем в начальной и средней фазах;
-- `Spearman Correlation >= 0.10`: в выбранном срезе есть положительное направление связи между величиной отыгрыша позиций и улучшением позднего относительного темпа.
+- `Gained Median Late vs Middle Pace Improvement > 0`: пилоты, отыгравшие позиции, в поздней фазе действительно лучше относительно пелотона, чем в средней фазе;
+- `Spearman Correlation >= 0.10`: в выбранном срезе есть положительное направление связи между величиной отыгрыша позиций и улучшением позднего относительного темпа относительно средней фазы.
 
 Порог `0.10` выбран как простой ориентир для учебного дашборда, чтобы не считать микроскопическую положительную связь подтверждением гипотезы. Его можно изменить, если в проекте будет принято другое правило.
 
@@ -681,10 +715,14 @@ RELATED(constructors[constructor_name])
 - `relative_pace_initial_pct`;
 - `relative_pace_middle_pct`;
 - `relative_pace_late_pct`;
+- `late_vs_middle_pace_improvement`;
+- `late_vs_initial_pace_improvement`;
 - `late_pace_improvement`;
 - `relative_pace_pct`;
+- `Median Late vs Middle Pace Improvement`;
+- `Gained Median Late vs Middle Pace Improvement`;
+- `Median Late vs Initial Pace Improvement`;
 - `Median Late Pace Improvement`;
-- `Gained Median Late Pace Improvement`;
 - `Median Relative Pace by Phase %`;
 - `Group Difference Late Improvement`.
 
@@ -692,7 +730,7 @@ RELATED(constructors[constructor_name])
 
 Для Spearman- и Pearson-корреляции используйте формат `Decimal number`, 2 или 3 знака после запятой.
 
-Перед сборкой страниц помните: в списке полей оставляем технические имена `snake_case`, а в конкретном визуале можно задать понятную подпись через правый клик по полю -> `Rename for this visual`. Например, `driver_race_metrics[position_gain]` можно показать как `Position Gain`, а `driver_race_metrics[late_pace_improvement]` как `Late Pace Improvement`.
+Перед сборкой страниц помните: в списке полей оставляем технические имена `snake_case`, а в конкретном визуале можно задать понятную подпись через правый клик по полю -> `Rename for this visual`. Например, `driver_race_metrics[position_gain]` можно показать как `Position Gain`, а `driver_race_metrics[late_vs_middle_pace_improvement]` как `Late vs Middle Pace Improvement`.
 
 ## 12. Страница 1: `Executive Summary`
 
@@ -716,9 +754,9 @@ RELATED(constructors[constructor_name])
 - `Race Count`;
 - `Driver-Race Observations`;
 - `Average Position Gain`;
-- `Median Late Pace Improvement`;
-- `Gained Median Late Pace Improvement`;
-- `Spearman Correlation Position Gain vs Late Pace Improvement`;
+- `Median Late vs Middle Pace Improvement`;
+- `Gained Median Late vs Middle Pace Improvement`;
+- `Spearman Correlation Position Gain vs Late vs Middle Pace Improvement`;
 - `Hypothesis Verdict`.
 
 ### 12.3. Scatter plot
@@ -727,7 +765,7 @@ RELATED(constructors[constructor_name])
 
 - `Values`: `driver_race_metrics[driver_race_key]`;
 - `X-axis`: `driver_race_metrics[position_gain]`, summarization `Average`;
-- `Y-axis`: `driver_race_metrics[late_pace_improvement]`, summarization `Average`;
+- `Y-axis`: `driver_race_metrics[late_vs_middle_pace_improvement]`, summarization `Average`;
 - `Legend`: `driver_race_metrics[position_change_group]`;
 - `Tooltips`:
   - `driver_race_metrics[Driver]`;
@@ -747,7 +785,7 @@ RELATED(constructors[constructor_name])
 Добавьте `Clustered bar chart`:
 
 - `Y-axis`: `driver_race_metrics[position_change_group]`;
-- `X-axis`: `Median Late Pace Improvement`.
+- `X-axis`: `Median Late vs Middle Pace Improvement`.
 
 Задайте сортировку:
 
@@ -755,7 +793,7 @@ RELATED(constructors[constructor_name])
 2. `No Change`;
 3. `Lost Positions`.
 
-Этот график показывает медианный `late_pace_improvement` по группам изменения позиции. Для нового вердикта особенно важна строка `Gained Positions`: ее значение соответствует смыслу меры `Gained Median Late Pace Improvement`, которая участвует в `Hypothesis Verdict`.
+Этот график показывает медианный `late_vs_middle_pace_improvement` по группам изменения позиции. Для нового вердикта особенно важна строка `Gained Positions`: ее значение соответствует смыслу меры `Gained Median Late vs Middle Pace Improvement`, которая участвует в `Hypothesis Verdict`.
 
 Меру `Group Difference Late Improvement` оставляем в модели только как справочную историческую проверку. На страницу `Executive Summary` ее отдельной карточкой не добавляем и в `Hypothesis Verdict` не используем.
 
@@ -764,7 +802,7 @@ RELATED(constructors[constructor_name])
 Добавьте текстовый блок с коротким объяснением:
 
 ```text
-Положительный late_pace_improvement означает улучшение позднего темпа относительно начальной и средней фаз. Гипотеза считается поддержанной, если у группы Gained Positions медианный late_pace_improvement больше 0, а Spearman-корреляция между position_gain и late_pace_improvement положительная и не ниже выбранного порога.
+Положительный late_vs_middle_pace_improvement означает, что поздний относительный темп лучше относительного темпа средней фазы. Гипотеза считается поддержанной, если у группы Gained Positions медианный late_vs_middle_pace_improvement больше 0, а Spearman-корреляция между position_gain и late_vs_middle_pace_improvement положительная и не ниже выбранного порога.
 ```
 
 ## 13. Страница 2: `Race Phase Pace`
@@ -805,7 +843,7 @@ RELATED(constructors[constructor_name])
 Добавьте `Clustered column chart`:
 
 - `X-axis`: `driver_race_metrics[position_change_group]`;
-- `Y-axis`: `Median Late Pace Improvement`.
+- `Y-axis`: `Median Late vs Middle Pace Improvement`.
 
 Добавьте slicers:
 
@@ -842,6 +880,8 @@ RELATED(constructors[constructor_name])
 - `driver_race_metrics[relative_pace_initial_pct]`;
 - `driver_race_metrics[relative_pace_middle_pct]`;
 - `driver_race_metrics[relative_pace_late_pct]`;
+- `driver_race_metrics[late_vs_middle_pace_improvement]`;
+- `driver_race_metrics[late_vs_initial_pace_improvement]`;
 - `driver_race_metrics[late_pace_improvement]`;
 - `driver_race_metrics[status]`.
 
@@ -882,7 +922,7 @@ RELATED(constructors[constructor_name])
 Добавьте `Line chart`:
 
 - `X-axis`: `races[year]`;
-- `Y-axis`: `Spearman Correlation Position Gain vs Late Pace Improvement`.
+- `Y-axis`: `Spearman Correlation Position Gain vs Late vs Middle Pace Improvement`.
 
 Если линия сильно меняется от сезона к сезону, связь нестабильна.
 
@@ -891,16 +931,16 @@ RELATED(constructors[constructor_name])
 Добавьте `Clustered bar chart`:
 
 - `Y-axis`: `constructors[constructor_name]`;
-- `X-axis`: `Median Late Pace Improvement`.
+- `X-axis`: `Median Late vs Middle Pace Improvement`.
 
-Отсортируйте по `Median Late Pace Improvement`.
+Отсортируйте по `Median Late vs Middle Pace Improvement`.
 
 ### 15.3. Scatter plot по сезонам
 
 Добавьте `Scatter chart`:
 
 - `X-axis`: `Median Position Gain`;
-- `Y-axis`: `Median Late Pace Improvement`;
+- `Y-axis`: `Median Late vs Middle Pace Improvement`;
 - `Details`: `races[year]`.
 
 Этот график помогает увидеть, какие сезоны выбиваются из общей картины.
@@ -913,9 +953,9 @@ RELATED(constructors[constructor_name])
 - `Race Count`;
 - `Driver-Race Observations`;
 - `Median Position Gain`;
-- `Median Late Pace Improvement`;
-- `Gained Median Late Pace Improvement`;
-- `Spearman Correlation Position Gain vs Late Pace Improvement`;
+- `Median Late vs Middle Pace Improvement`;
+- `Gained Median Late vs Middle Pace Improvement`;
+- `Spearman Correlation Position Gain vs Late vs Middle Pace Improvement`;
 - `Relationship Direction`.
 
 ## 16. Финальная проверка дашборда
@@ -929,7 +969,7 @@ RELATED(constructors[constructor_name])
 5. `position_gain` считается как `starting_position_clean - finish_position`, где `starting_position_clean` - очищенная стартовая позиция.
 6. Положительный `position_gain` означает, что пилот отыграл позиции.
 7. Отрицательный `relative_pace_pct` означает, что пилот быстрее медианного темпа пелотона.
-8. Положительный `late_pace_improvement` означает улучшение позднего относительного темпа.
+8. Положительный `late_vs_middle_pace_improvement` означает улучшение позднего относительного темпа относительно средней фазы.
 9. При выборе сезона, гонки, пилота или конструктора все графики пересчитываются.
 
 ## 17. Как сформулировать итоговый вывод
@@ -937,19 +977,19 @@ RELATED(constructors[constructor_name])
 Если гипотеза поддерживается, используйте такой шаблон:
 
 ```text
-В выбранном периоде пилоты, отыгравшие позиции от старта к финишу, в среднем показывают положительное медианное улучшение позднего относительного темпа. Spearman-корреляция между `position_gain` и `late_pace_improvement` положительная, значит больший отыгрыш позиций обычно связан с лучшим улучшением позднего относительного темпа. Это поддерживает гипотезу, но не доказывает причинность, потому что в модели не учтены пит-стопы, шины, Safety Car, штрафы и гоночные инциденты.
+В выбранном периоде пилоты, отыгравшие позиции от старта к финишу, в среднем показывают положительное медианное улучшение позднего относительного темпа относительно средней фазы. Spearman-корреляция между `position_gain` и `late_vs_middle_pace_improvement` положительная, значит больший отыгрыш позиций обычно связан с лучшим поздним темпом относительно средней фазы. Это поддерживает гипотезу, но не доказывает причинность, потому что в модели не учтены пит-стопы, шины, Safety Car, штрафы и гоночные инциденты.
 ```
 
 Если гипотеза не поддерживается, используйте такой шаблон:
 
 ```text
-В выбранном периоде гипотеза не поддерживается: у группы Gained Positions медианный `late_pace_improvement` не положительный, либо Spearman-корреляция между `position_gain` и `late_pace_improvement` отрицательная. Значит, в этом срезе отыгрыш позиций не сопровождается устойчивым улучшением позднего относительного темпа и, вероятно, чаще объясняется другими факторами: стратегией, пит-стопами, сходами соперников, штрафами или обстоятельствами конкретной гонки.
+В выбранном периоде гипотеза не поддерживается: у группы Gained Positions медианный `late_vs_middle_pace_improvement` не положительный, либо Spearman-корреляция между `position_gain` и `late_vs_middle_pace_improvement` отрицательная. Значит, в этом срезе отыгрыш позиций не сопровождается устойчивым улучшением позднего относительного темпа относительно средней фазы и, вероятно, чаще объясняется другими факторами: стратегией, пит-стопами, сходами соперников, штрафами или обстоятельствами конкретной гонки.
 ```
 
 Если результат неоднозначный:
 
 ```text
-Результат требует уточнения: у группы Gained Positions может быть положительный медианный `late_pace_improvement`, но Spearman-корреляция слишком слабая, или наоборот. Нужно дополнительно проверить отдельные гонки, выбросы, статусы финиша и возможное влияние факторов, которых нет в датасете.
+Результат требует уточнения: у группы Gained Positions может быть положительный медианный `late_vs_middle_pace_improvement`, но Spearman-корреляция слишком слабая, или наоборот. Нужно дополнительно проверить отдельные гонки, выбросы, статусы финиша и возможное влияние факторов, которых нет в датасете.
 ```
 
 ## 18. Частые ошибки новичков

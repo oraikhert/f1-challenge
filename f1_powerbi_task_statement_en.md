@@ -12,14 +12,14 @@ How is a driver's position change from start to finish related to the change in 
 
 ## 3. Testable Hypothesis
 
-Drivers who improve their finishing position relative to their starting position are faster relative to the other drivers in the late phase of the race than they were relative to them in the initial and middle phases.
+Drivers who improve their finishing position relative to their starting position are faster relative to the rest of the field in the late phase of the race than they were relative to it in the middle phase.
 
 The hypothesis is considered supported if both of the following patterns are observed in the data:
 
-1. Drivers who gain positions have better relative pace in the late phase of the race than in the initial and middle phases.
-2. The group of drivers who gain positions shows a stronger improvement in late relative pace than drivers who maintain or lose positions.
+1. Drivers who gain positions have a positive median late relative pace improvement compared with the middle phase.
+2. The amount of position gain has a positive directional relationship with late relative pace improvement compared with the middle phase.
 
-The hypothesis is considered rejected or not supported if the relationship is weak, unstable across seasons/races, or if drivers who gain positions do not show better late relative pace compared with the rest of the field.
+The hypothesis is considered rejected or not supported if the relationship is weak, unstable across seasons/races, or if drivers who gain positions do not show late relative pace improvement compared with the middle phase.
 
 ## 4. Analysis Period and Data Coverage
 
@@ -65,14 +65,28 @@ Example formula:
 - a value below 0 means the driver was faster than the median peloton pace;
 - a value above 0 means the driver was slower than the median peloton pace.
 
-### Late Pace Improvement
+### Late Pace Improvement vs Middle Phase
+
+Primary metric for testing the hypothesis:
+
+`Late vs Middle Pace Improvement = Relative Pace Middle - Relative Pace Late`
+
+- a positive value means the driver became faster relative to the field in the late phase than in the middle phase;
+- a negative value means the driver became slower relative to the field in the late phase than in the middle phase.
+
+The middle phase is used as the primary baseline because it is usually less distorted by the race start, warm-up effects, dense early traffic, and chaotic opening-lap events. For a Formula 1 team, this comparison is more useful because it is closer to the question of whether the driver maintains competitive pace toward the end of the race after a more stable middle stint.
+
+Additional reference metric:
+
+`Late vs Initial Pace Improvement = Relative Pace Initial - Relative Pace Late`
+
+It shows whether the late phase was better or worse than the initial phase, but it is not used in the primary verdict.
+
+The previous summary metric is kept for reference, but it is not used in the primary verdict:
 
 `Late Pace Improvement = Avg(Relative Pace Initial, Relative Pace Middle) - Relative Pace Late`
 
 Here `Avg` means the arithmetic mean of the two already calculated relative pace values; it does not mean average lap time.
-
-- a positive value means the driver became faster relative to the peloton in the late phase;
-- a negative value means the driver became slower relative to the peloton in the late phase.
 
 ## 6. Metrics for Testing the Hypothesis
 
@@ -82,12 +96,14 @@ Here `Avg` means the arithmetic mean of the two already calculated relative pace
 4. `Relative Pace Initial %` - relative pace in the initial race phase.
 5. `Relative Pace Middle %` - relative pace in the middle race phase.
 6. `Relative Pace Late %` - relative pace in the late race phase.
-7. `Late Pace Improvement` - improvement in relative pace in the late phase compared with the initial and middle phases.
-8. `Driver Race Count` - the number of races in the sample for a driver.
-9. `Median Position Gain by Driver/Season` - median position change by driver or season.
-10. `Median Late Pace Improvement by Driver/Season` - median late pace improvement by driver or season.
-11. `Correlation: Position Gain vs Late Pace Improvement` - the strength of the relationship between positions gained and late pace improvement.
-12. `Group Difference` - the difference in median `Late Pace Improvement` between drivers who gained positions and drivers who did not gain positions.
+7. `Late vs Middle Pace Improvement` - primary improvement in relative pace in the late phase compared with the middle phase.
+8. `Late vs Initial Pace Improvement` - additional improvement in relative pace in the late phase compared with the initial phase.
+9. `Late Pace Improvement` - reference summary metric compared with the average of the initial and middle phases; not used in the primary verdict.
+10. `Driver Race Count` - the number of races in the sample for a driver.
+11. `Median Position Gain by Driver/Season` - median position change by driver or season.
+12. `Median Late vs Middle Pace Improvement by Driver/Season` - median late pace improvement vs the middle phase by driver or season.
+13. `Spearman Correlation: Position Gain vs Late vs Middle Pace Improvement` - the directional relationship between positions gained and late pace improvement vs the middle phase.
+14. `Group Difference` - reference difference in median late pace improvement between drivers who gained positions and drivers who did not gain positions; not used in the primary verdict.
 
 ## 7. Comparison Segments
 
@@ -131,11 +147,11 @@ The goal of this page is to provide a quick answer on whether the hypothesis is 
 
 Planned elements:
 
-- KPI: number of races, number of driver-race observations, average `Position Gain`, median `Late Pace Improvement`;
-- KPI or card showing the direction of the relationship between `Position Gain` and `Late Pace Improvement`;
-- scatter plot: `Position Gain` on the X-axis and `Late Pace Improvement` on the Y-axis;
+- KPI: number of races, number of driver-race observations, average `Position Gain`, median `Late vs Middle Pace Improvement`;
+- KPI or card showing the direction of the relationship between `Position Gain` and `Late vs Middle Pace Improvement`;
+- scatter plot: `Position Gain` on the X-axis and `Late vs Middle Pace Improvement` on the Y-axis;
 - color split by `Gained Positions`, `No Change`, and `Lost Positions`;
-- bar chart: median `Late Pace Improvement` across the three position-change groups;
+- bar chart: median `Late vs Middle Pace Improvement` across the three position-change groups;
 - filters by season, race, driver, and constructor;
 - text block with the current verdict: "hypothesis supported", "not supported", or "requires further clarification".
 
@@ -147,7 +163,7 @@ Planned elements:
 
 - line chart: median relative pace by race phase for the `Gained Positions`, `No Change`, and `Lost Positions` groups;
 - matrix/heatmap: drivers or teams as rows, race phases as columns, and relative pace as the value;
-- bar chart: difference between late relative pace and the mean of the initial/middle relative pace values;
+- bar chart: difference between late relative pace and middle-phase relative pace;
 - filters by season, race, team, and finishing status.
 
 ### Page 3. Driver and Race Drilldown: Driver or Race Breakdown
@@ -156,7 +172,7 @@ The goal of this page is to allow the team to validate the aggregate finding thr
 
 Planned elements:
 
-- table of drivers in the selected race: start, finish, `Position Gain`, relative pace by phase, and `Late Pace Improvement`;
+- table of drivers in the selected race: start, finish, `Position Gain`, relative pace by phase, `Late vs Middle Pace Improvement`, `Late vs Initial Pace Improvement`, and reference `Late Pace Improvement`;
 - lap-by-lap line chart: driver's position on each lap;
 - lap-by-lap line chart: lap time or relative lap pace;
 - comparison of the selected driver against the peloton median;
@@ -168,16 +184,16 @@ The goal of this page is to check whether the relationship remains stable across
 
 Planned elements:
 
-- trend chart: correlation between `Position Gain` and `Late Pace Improvement` by season;
-- bar chart: median `Late Pace Improvement` by constructor;
+- trend chart: Spearman correlation between `Position Gain` and `Late vs Middle Pace Improvement` by season;
+- bar chart: median `Late vs Middle Pace Improvement` by constructor;
 - scatter plot by season or team;
-- season table with the number of observations, median `Position Gain`, median `Late Pace Improvement`, and relationship direction.
+- season table with the number of observations, median `Position Gain`, median `Late vs Middle Pace Improvement`, and relationship direction.
 
 ## 10. Five-Minute Presentation Storyline
 
 1. Minute 1: state the question - does position gain come from real pace at the end of the race, or from other race circumstances?
 2. Minute 2: explain the method - split the race into initial, middle, and late phases, calculate median-based relative pace against the peloton median, and compare it with position change.
-3. Minute 3: show the overall result on the Executive Summary page - whether there is a relationship between `Position Gain` and `Late Pace Improvement`.
+3. Minute 3: show the overall result on the Executive Summary page - whether there is a relationship between `Position Gain` and `Late vs Middle Pace Improvement`.
 4. Minute 4: move to Race Phase Pace and show how pace profiles differ between drivers who gained and lost positions.
 5. Minute 5: open Driver and Race Drilldown, show one concrete example, then return to the conclusion: the hypothesis is supported, rejected, or requires further clarification.
 
@@ -185,13 +201,13 @@ Planned elements:
 
 If the hypothesis is supported, the final conclusion may be stated as follows:
 
-"In the analyzed period, drivers who gained positions from start to finish were, on average, faster relative to the peloton in the late phase of the race than in the initial and middle phases. A positive relationship is observed between the number of positions gained and late pace improvement. This means that late-race pace may be one indicator of successful position gain, although by itself it does not prove causality without accounting for strategy, pit stops, tires, and race incidents."
+"In the analyzed period, drivers who gained positions from start to finish were, on average, faster relative to the peloton in the late phase of the race than in the middle phase. A positive directional relationship is observed between the number of positions gained and late pace improvement vs the middle phase. This means that late-race pace may be one indicator of successful position gain, although by itself it does not prove causality without accounting for strategy, pit stops, tires, and race incidents."
 
 ## 12. Example Conclusion if the Hypothesis Is Rejected
 
 If the hypothesis is not supported, the final conclusion may be stated as follows:
 
-"In the analyzed period, no stable relationship was found between improvement in position from start to finish and improvement in relative pace during the late phase of the race. Drivers who gained positions do not systematically demonstrate better late-race pace compared with drivers who maintained or lost positions. This indicates that position change may be explained to a greater extent by start events, strategy, pit stops, retirements of competitors, penalties, or race-specific circumstances."
+"In the analyzed period, no stable relationship was found between improvement in position from start to finish and improvement in relative pace during the late phase compared with the middle phase. Drivers who gained positions do not systematically demonstrate late relative pace improvement compared with the middle phase. This indicates that position change may be explained to a greater extent by start events, strategy, pit stops, retirements of competitors, penalties, or race-specific circumstances."
 
 ## 13. Expected Dashboard Outcome
 
