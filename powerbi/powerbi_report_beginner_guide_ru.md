@@ -630,6 +630,11 @@ DIVIDE(
 ```
 
 ```dax
+Conversion Rate Gap =
+[Conversion Rate - Improvers] - [Conversion Rate - Non-Improvers]
+```
+
+```dax
 Median Position Gain - Improvers =
 CALCULATE(
     [Median Position Gain],
@@ -650,7 +655,30 @@ Position Gain Difference =
 [Median Position Gain - Improvers] - [Median Position Gain - Non-Improvers]
 ```
 
-### 8.3. Дополнительная мера корреляции
+```dax
+Hypothesis Verdict =
+VAR ConversionGap = [Conversion Rate Gap]
+VAR MedianGainGap = [Position Gain Difference]
+RETURN
+    SWITCH(
+        TRUE(),
+        ISBLANK(ConversionGap) || ISBLANK(MedianGainGap), "Not enough data",
+        ConversionGap > 0 && MedianGainGap > 0, "Supported in selected context",
+        ConversionGap > 0 || MedianGainGap > 0, "Mixed / context-dependent",
+        "Not supported in selected context"
+    )
+```
+
+### 8.3. Мера для каскадных фильтров
+
+Эта мера нужна, чтобы slicers показывали только значения, для которых есть строки в `DriverRaceAnalysis` в текущем контексте фильтров.
+
+```dax
+Slicer Has Data =
+IF([Observations] > 0, 1, 0)
+```
+
+### 8.4. Дополнительная мера корреляции
 
 Эта мера считает ранговую корреляцию между улучшением позднего темпа и изменением позиции. Она нужна как дополнительное доказательство, но не как главный KPI.
 
@@ -719,6 +747,29 @@ RETURN
 
 Так отчет будет проще читать.
 
+### 9.1. Как сделать каскадные фильтры
+
+При star schema slicers из разных dimension-таблиц могут показывать полный список значений, даже если для выбранного сезона часть конструкторов или гонок не имеет строк в fact-таблице. Чтобы списки сокращались под текущий выбор, используй меру `Slicer Has Data`.
+
+Для каждого slicer:
+
+1. Выбери slicer, например `constructors[Constructor]`.
+2. В панели `Filters` найди блок `Filters on this visual`.
+3. Добавь туда меру `Slicer Has Data`.
+4. Установи условие:
+   - `Slicer Has Data` is `1`.
+5. Если в настройках slicer есть `Show items with no data`, выключи его.
+
+Повтори это для slicers:
+
+- `races[Season]`;
+- `constructors[Constructor]`;
+- `drivers[Driver]`;
+- `DriverRaceAnalysis[Starting Position Group]`;
+- `races[Grand Prix]`.
+
+После этого выбор `Season = 2025` будет оставлять в списках только конструкторов, пилотов и Гран-при с наблюдениями за 2025 год. Обратная логика тоже будет работать: выбор конструктора или гонки сократит список доступных сезонов.
+
 ## 10. Страница 1: Executive Verdict
 
 Цель страницы: сразу показать, подтверждается ли гипотеза.
@@ -733,22 +784,47 @@ Executive Verdict: Does Late Pace Convert Into Positions?
 
 ### 10.2. Добавь KPI-карточки
 
-Создай четыре `Card` visual:
+Создай компактный KPI-блок. Лучше сделать две строки карточек: первая строка отвечает на conversion, вторая строка показывает positional outcome.
 
-1. `Conversion Rate - Improvers`
-2. `Median Position Gain - Improvers`
-3. `Median Position Gain - Non-Improvers`
-4. `Position Gain Difference`
+Первая строка:
+
+1. `Observations`
+2. `Conversion Rate - Improvers`
+3. `Conversion Rate - Non-Improvers`
+4. `Conversion Rate Gap`
+
+Вторая строка:
+
+1. `Median Position Gain - Improvers`
+2. `Median Position Gain - Non-Improvers`
+3. `Position Gain Difference`
+4. `Hypothesis Verdict`
 
 Настройки:
 
-- для `Conversion Rate - Improvers` используй формат `Percentage`;
+- для `Conversion Rate - Improvers`, `Conversion Rate - Non-Improvers` и `Conversion Rate Gap` используй формат `Percentage`;
 - для медианных позиций используй 1 знак после запятой;
+- для `Observations` используй целое число;
 - подписи карточек сделай короткими:
+  - `N`;
   - `Conversion Rate`;
+  - `Non-Improver Conv.`;
+  - `Conversion Gap`;
   - `Median Gain: Improvers`;
   - `Median Gain: Non-Improvers`;
-  - `Median Gain Gap`.
+  - `Median Gain Gap`;
+  - `Verdict`.
+
+`Conversion Rate - Improvers` остается главным KPI страницы, но без `Conversion Rate - Non-Improvers` его трудно интерпретировать. `Conversion Rate Gap` сразу показывает, насколько improvers лучше или хуже non-improvers в выбранном контексте.
+
+Если места мало, оставь обязательный минимум:
+
+- `Observations`;
+- `Conversion Rate - Improvers`;
+- `Conversion Rate - Non-Improvers`;
+- `Conversion Rate Gap`;
+- `Position Gain Difference`;
+- `Hypothesis Verdict`.
 
 ### 10.3. Добавь график долей исходов
 
@@ -762,9 +838,29 @@ Executive Verdict: Does Late Pace Convert Into Positions?
 
 Этот график отвечает на вопрос: у какой группы больше доля `Gained Positions`.
 
-### 10.4. Добавь текстовый вывод
+Рекомендуемые настройки:
 
-Добавь текстовый блок с выводом. Используй один из вариантов:
+- включи `Data labels`, чтобы были видны проценты сегментов;
+- выключи или переименуй Y-axis title: лучше `Share of observations`, а не `Observations`;
+- используй смысловые цвета:
+  - `Gained Positions` - зеленый или синий;
+  - `Held Position` - серый;
+  - `Lost Positions` - красный или оранжевый;
+- добавь `Observations` в tooltip, чтобы было видно размер выборки;
+- если выбран один Гран-при, обязательно смотри на `Observations`: на маленькой выборке вывод должен быть аккуратным.
+
+### 10.4. Добавь динамический verdict
+
+Добавь `Card` visual с мерой `Hypothesis Verdict`. Она будет меняться при выборе сезона, конструктора, пилота, стартовой группы или Гран-при.
+
+Интерпретация:
+
+- `Supported in selected context` - improvers лучше non-improvers и по conversion rate, и по median position gain;
+- `Mixed / context-dependent` - улучшение видно только по одной из двух метрик;
+- `Not supported in selected context` - improvers не лучше non-improvers в выбранном срезе;
+- `Not enough data` - в выбранном срезе недостаточно данных для вывода.
+
+Если хочешь оставить обычный текстовый блок вместо динамической карточки, используй одну из формулировок:
 
 ```text
 Hypothesis supported: late pace improvers show higher conversion rate and higher median position gain.
@@ -970,9 +1066,12 @@ Late vs Middle Pace Improvement = Middle Relative Pace % - Late Relative Pace %
 Используй такую логику:
 
 1. Сравни `Conversion Rate - Improvers` и `Conversion Rate - Non-Improvers`.
-2. Сравни `Median Position Gain - Improvers` и `Median Position Gain - Non-Improvers`.
-3. Посмотри scatter plot: есть ли больше точек в правой верхней зоне.
-4. Проверь разрезы на странице 3: стартовая группа и конструктор.
+2. Проверь `Conversion Rate Gap`: положительное значение поддерживает гипотезу, отрицательное ослабляет ее.
+3. Сравни `Median Position Gain - Improvers` и `Median Position Gain - Non-Improvers`.
+4. Проверь `Position Gain Difference`: положительное значение означает, что improvers имеют лучший медианный позиционный результат.
+5. Посмотри `Observations`: если выбран один Гран-при или маленький сегмент, вывод должен звучать как локальный.
+6. Посмотри scatter plot: есть ли больше точек в правой верхней зоне.
+7. Проверь разрезы на странице 3: стартовая группа и конструктор.
 
 Гипотеза поддержана, если:
 
@@ -1003,9 +1102,10 @@ Late vs Middle Pace Improvement = Middle Relative Pace % - Late Relative Pace %
 
 Перед сдачей отчета проверь:
 
-- на странице 1 есть четыре KPI и общий verdict;
+- на странице 1 есть `Observations`, conversion KPI для improvers и non-improvers, `Conversion Rate Gap`, median gain KPI и динамический verdict;
 - на странице 2 есть scatter plot, bucket chart и evidence table;
 - на странице 3 есть стартовые группы, рейтинг конструкторов, 2x2 matrix и таблица `Unconverted Late Pace`;
+- slicers настроены через `Slicer Has Data`, чтобы показывать только значения с доступными наблюдениями;
 - проценты отображаются как проценты, а не как десятичные числа;
 - `Pace Improvement Bucket` отсортирован в правильном порядке;
 - в таблице `DriverRaceAnalysis` одна строка соответствует одному пилоту в одной гонке;
