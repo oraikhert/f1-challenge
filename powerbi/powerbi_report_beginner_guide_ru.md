@@ -703,7 +703,59 @@ Slicer Has Data =
 IF([Observations] > 0, 1, 0)
 ```
 
-### 8.4. Дополнительная мера корреляции
+### 8.4. Меры для корректного tooltip в scatter plot
+
+Scatter plot строит точки из fact-таблицы `DriverRaceAnalysis`. Если добавить в tooltip напрямую поля `drivers[Driver]`, `constructors[Constructor]` или `races[Grand Prix]`, Power BI может показать неправильное значение, потому что конкретная точка из fact-таблицы не фильтрует dimension-таблицы обратно.
+
+Чтобы tooltip всегда показывал правильного пилота, команду и гонку для выбранной точки, создай отдельные lookup-меры:
+
+```dax
+Tooltip Driver =
+VAR DriverID =
+    SELECTEDVALUE('DriverRaceAnalysis'[driver_ID])
+RETURN
+    LOOKUPVALUE(
+        drivers[Driver],
+        drivers[driver_ID], DriverID
+    )
+```
+
+```dax
+Tooltip Constructor =
+VAR ConstructorID =
+    SELECTEDVALUE('DriverRaceAnalysis'[constructor_ID])
+RETURN
+    LOOKUPVALUE(
+        constructors[Constructor],
+        constructors[constructor_ID], ConstructorID
+    )
+```
+
+```dax
+Tooltip Grand Prix =
+VAR RaceID =
+    SELECTEDVALUE('DriverRaceAnalysis'[race_ID])
+RETURN
+    LOOKUPVALUE(
+        races[Grand Prix],
+        races[race_ID], RaceID
+    )
+```
+
+```dax
+Tooltip Season =
+VAR RaceID =
+    SELECTEDVALUE('DriverRaceAnalysis'[race_ID])
+RETURN
+    LOOKUPVALUE(
+        races[Season],
+        races[race_ID], RaceID
+    )
+```
+
+Не исправляй эту проблему через bidirectional relationships. Для tooltip надежнее оставить модель со связями `Single direction` и использовать `LOOKUPVALUE`.
+
+### 8.5. Дополнительная мера корреляции
 
 Эта мера считает ранговую корреляцию между улучшением позднего темпа и изменением позиции. Она нужна как дополнительное доказательство, но не как главный KPI.
 
@@ -916,14 +968,16 @@ Hypothesis not supported: late pace improvers do not gain positions more often t
 - Legend: `DriverRaceAnalysis[Position Outcome]`;
 - Details: `DriverRaceAnalysis[Observation ID]`;
 - Tooltips:
-  - `races[Season]`;
-  - `races[Grand Prix]`;
-  - `drivers[Driver]`;
-  - `constructors[Constructor]`;
+  - `Tooltip Season`;
+  - `Tooltip Grand Prix`;
+  - `Tooltip Driver`;
+  - `Tooltip Constructor`;
   - `DriverRaceAnalysis[Start Position]`;
   - `DriverRaceAnalysis[Finish Position]`;
   - `DriverRaceAnalysis[Middle Relative Pace %]`;
   - `DriverRaceAnalysis[Late Relative Pace %]`.
+
+Важно: для scatter tooltip не добавляй напрямую `races[Season]`, `races[Grand Prix]`, `drivers[Driver]` и `constructors[Constructor]`. Используй lookup-меры `Tooltip Season`, `Tooltip Grand Prix`, `Tooltip Driver`, `Tooltip Constructor`, иначе Power BI может показать первое значение из dimension-таблицы, а не значение, связанное с конкретной точкой.
 
 Настройки:
 
