@@ -393,12 +393,12 @@ let
         AddStartingPositionGroupSort,
         "Pace Improvement Bucket",
         each
-            if [#"Late vs Middle Pace Improvement"] < -0.01 then "< -1.0 pp"
-            else if [#"Late vs Middle Pace Improvement"] < -0.005 then "-1.0 to -0.5 pp"
-            else if [#"Late vs Middle Pace Improvement"] < 0 then "-0.5 to 0 pp"
-            else if [#"Late vs Middle Pace Improvement"] < 0.005 then "0 to +0.5 pp"
-            else if [#"Late vs Middle Pace Improvement"] < 0.01 then "+0.5 to +1.0 pp"
-            else "> +1.0 pp",
+            if [#"Late vs Middle Pace Improvement"] < -0.01 then "Large pace decline"
+            else if [#"Late vs Middle Pace Improvement"] < -0.005 then "Medium pace decline"
+            else if [#"Late vs Middle Pace Improvement"] < 0 then "Small pace decline"
+            else if [#"Late vs Middle Pace Improvement"] < 0.005 then "Small pace gain"
+            else if [#"Late vs Middle Pace Improvement"] < 0.01 then "Medium pace gain"
+            else "Large pace gain",
         type text
     ),
 
@@ -415,8 +415,21 @@ let
         Int64.Type
     ),
 
-    AddConversionQuadrant = Table.AddColumn(
+    AddPaceImprovementRange = Table.AddColumn(
         AddPaceImprovementBucketSort,
+        "Pace Improvement Range",
+        each
+            if [#"Late vs Middle Pace Improvement"] < -0.01 then "< -1.0 pp"
+            else if [#"Late vs Middle Pace Improvement"] < -0.005 then "-1.0 to -0.5 pp"
+            else if [#"Late vs Middle Pace Improvement"] < 0 then "-0.5 to 0 pp"
+            else if [#"Late vs Middle Pace Improvement"] < 0.005 then "0 to +0.5 pp"
+            else if [#"Late vs Middle Pace Improvement"] < 0.01 then "+0.5 to +1.0 pp"
+            else "> +1.0 pp",
+        type text
+    ),
+
+    AddConversionQuadrant = Table.AddColumn(
+        AddPaceImprovementRange,
         "Conversion Quadrant",
         each
             if [#"Late vs Middle Pace Improvement"] > 0 and [Position Gain] > 0 then "Successful Conversion"
@@ -452,6 +465,7 @@ let
             "Starting Position Group",
             "Starting Position Group Sort",
             "Pace Improvement Bucket",
+            "Pace Improvement Range",
             "Pace Improvement Bucket Sort",
             "Conversion Quadrant",
             "Status"
@@ -549,6 +563,17 @@ races            1 -> * DriverRaceAnalysis
 1. Выбери колонку `DriverRaceAnalysis[Pace Improvement Bucket]`.
 2. Нажми `Column tools` -> `Sort by column`.
 3. Выбери `DriverRaceAnalysis[Pace Improvement Bucket Sort]`.
+
+`Pace Improvement Bucket` должен показывать понятные бизнес-подписи:
+
+- `Large pace decline`;
+- `Medium pace decline`;
+- `Small pace decline`;
+- `Small pace gain`;
+- `Medium pace gain`;
+- `Large pace gain`.
+
+Числовые границы этих групп хранятся отдельно в колонке `DriverRaceAnalysis[Pace Improvement Range]`. Используй ее в таблицах и tooltips, когда зрителю нужно видеть точный диапазон.
 
 После настройки сортировки можно скрыть технические sort-колонки из report view:
 
@@ -916,6 +941,10 @@ Hypothesis not supported: late pace improvers do not gain positions more often t
 
 - X-axis: `DriverRaceAnalysis[Pace Improvement Bucket]`;
 - Values: `Median Position Gain`.
+- Tooltips:
+  - `DriverRaceAnalysis[Pace Improvement Range]`;
+  - `Observations`;
+  - `% Gained Positions`.
 
 Проверь, что `DriverRaceAnalysis[Pace Improvement Bucket]` отсортирован по `DriverRaceAnalysis[Pace Improvement Bucket Sort]`.
 
@@ -926,6 +955,7 @@ Hypothesis not supported: late pace improvers do not gain positions more often t
 Поля:
 
 - `DriverRaceAnalysis[Pace Improvement Bucket]`;
+- `DriverRaceAnalysis[Pace Improvement Range]`;
 - `Observations`;
 - `Median Position Gain`;
 - `% Gained Positions`.
