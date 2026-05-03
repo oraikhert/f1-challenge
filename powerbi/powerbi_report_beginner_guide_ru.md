@@ -124,6 +124,18 @@ Text.Trim([driver_forename] & " " & [driver_surname])
    - `circuit_country` -> `Country`;
    - `circuit_name` -> `Grand Prix`;
    - `race_date` -> `Race Date`.
+6. Добавь колонку `Season Sort Desc`:
+   - `Add Column` -> `Custom Column`;
+   - имя колонки: `Season Sort Desc`;
+   - формула:
+
+```powerquery
+9999 - [Season]
+```
+
+7. Для `Season Sort Desc` установи тип `Whole Number`.
+
+Эта колонка нужна только для сортировки slicer `Season` от новых сезонов к старым. При обычной сортировке по возрастанию значения `Season Sort Desc` порядок сезонов будет `2026`, `2025`, `2024` и так далее.
 
 ### 4.4. Служебные staging-запросы
 
@@ -366,8 +378,19 @@ let
         type text
     ),
 
-    AddPaceImprovementBucket = Table.AddColumn(
+    AddStartingPositionGroupSort = Table.AddColumn(
         AddStartingPositionGroup,
+        "Starting Position Group Sort",
+        each
+            if [Start Position] <= 5 then 1
+            else if [Start Position] <= 10 then 2
+            else if [Start Position] <= 15 then 3
+            else 4,
+        Int64.Type
+    ),
+
+    AddPaceImprovementBucket = Table.AddColumn(
+        AddStartingPositionGroupSort,
         "Pace Improvement Bucket",
         each
             if [#"Late vs Middle Pace Improvement"] < -0.01 then "< -1.0 pp"
@@ -427,6 +450,7 @@ let
             "Position Outcome",
             "Position Gain Flag",
             "Starting Position Group",
+            "Starting Position Group Sort",
             "Pace Improvement Bucket",
             "Pace Improvement Bucket Sort",
             "Conversion Quadrant",
@@ -508,11 +532,29 @@ races            1 -> * DriverRaceAnalysis
 - `Season` -> формат `Whole number`;
 - `Round` -> формат `Whole number`.
 
+Для сортировки slicer `Season` от новых сезонов к старым:
+
+1. Выбери колонку `races[Season]`.
+2. Нажми `Column tools` -> `Sort by column`.
+3. Выбери `races[Season Sort Desc]`.
+
+Для сортировки `Starting Position Group` в порядке `P1-P5`, `P6-P10`, `P11-P15`, `P16+`:
+
+1. Выбери колонку `DriverRaceAnalysis[Starting Position Group]`.
+2. Нажми `Column tools` -> `Sort by column`.
+3. Выбери `DriverRaceAnalysis[Starting Position Group Sort]`.
+
 Для сортировки bucket-поля:
 
-1. Выбери колонку `Pace Improvement Bucket`.
+1. Выбери колонку `DriverRaceAnalysis[Pace Improvement Bucket]`.
 2. Нажми `Column tools` -> `Sort by column`.
-3. Выбери `Pace Improvement Bucket Sort`.
+3. Выбери `DriverRaceAnalysis[Pace Improvement Bucket Sort]`.
+
+После настройки сортировки можно скрыть технические sort-колонки из report view:
+
+- `races[Season Sort Desc]`;
+- `DriverRaceAnalysis[Starting Position Group Sort]`;
+- `DriverRaceAnalysis[Pace Improvement Bucket Sort]`.
 
 ## 8. Создание DAX-мер
 
