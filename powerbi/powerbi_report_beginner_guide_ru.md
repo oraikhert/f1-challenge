@@ -18,6 +18,14 @@
 
 Единица анализа: **один пилот в одной гонке**.
 
+Модель данных будет построена как star schema:
+
+- `DriverRaceAnalysis` - основная fact-таблица, одна строка = пилот в гонке;
+- `drivers` - dimension-таблица пилотов;
+- `constructors` - dimension-таблица команд / конструкторов;
+- `races` - dimension-таблица гонок;
+- `results` и `lap_times` - служебные staging-запросы для расчета fact-таблицы.
+
 ## 2. Какие файлы нужны
 
 Для отчета нужны эти CSV-файлы из папки `dataset`:
@@ -51,13 +59,87 @@
 
 Важно: названия запросов должны совпадать с этим списком, потому что готовый код ниже ссылается именно на них.
 
-Если Power Query автоматически добавил шаг `Changed Type` в сырых запросах и где-то появились ошибки из-за значений `\N`, удали этот шаг в панели `Applied Steps`. Итоговый запрос `DriverRaceAnalysis` сам задает нужные типы данных для используемых колонок.
+Если Power Query автоматически добавил шаг `Changed Type` в сырых запросах и где-то появились ошибки из-за значений `\N`, удали этот шаг в панели `Applied Steps`. Ниже ты отдельно задашь нужные типы для dimensions и fact-таблицы.
 
-## 4. Создание итоговой аналитической таблицы
+## 4. Подготовка dimension-таблиц
+
+Перед созданием fact-таблицы подготовь три dimension-таблицы. Это уменьшит дублирование текста в модели и сделает фильтры отчета чище.
+
+### 4.1. Таблица `drivers`
+
+1. В Power Query выбери запрос `drivers`.
+2. Оставь только колонки:
+   - `driver_ID`;
+   - `driver_code`;
+   - `driver_forename`;
+   - `driver_surname`;
+   - `driver_nationality`.
+3. Для `driver_ID` установи тип `Whole Number`.
+4. Добавь колонку `Driver`:
+   - `Add Column` -> `Custom Column`;
+   - имя колонки: `Driver`;
+   - формула:
+
+```powerquery
+Text.Trim([driver_forename] & " " & [driver_surname])
+```
+
+5. Переименуй поля:
+   - `driver_code` -> `Driver Code`;
+   - `driver_forename` -> `Driver Forename`;
+   - `driver_surname` -> `Driver Surname`;
+   - `driver_nationality` -> `Driver Nationality`.
+
+### 4.2. Таблица `constructors`
+
+1. В Power Query выбери запрос `constructors`.
+2. Оставь только колонки:
+   - `constructor_ID`;
+   - `constructor_name`;
+   - `constructor_nationality`.
+3. Для `constructor_ID` установи тип `Whole Number`.
+4. Переименуй поля:
+   - `constructor_name` -> `Constructor`;
+   - `constructor_nationality` -> `Constructor Nationality`.
+
+### 4.3. Таблица `races`
+
+1. В Power Query выбери запрос `races`.
+2. Оставь только колонки:
+   - `race_ID`;
+   - `year`;
+   - `round`;
+   - `circuit_location`;
+   - `circuit_country`;
+   - `circuit_name`;
+   - `race_date`.
+3. Для `race_ID`, `year` и `round` установи тип `Whole Number`.
+4. Для `race_date` установи тип `Date` через `Change Type` -> `Using Locale`:
+   - Data Type: `Date`;
+   - Locale: `English (United Kingdom)`.
+5. Переименуй поля:
+   - `year` -> `Season`;
+   - `round` -> `Round`;
+   - `circuit_location` -> `Circuit Location`;
+   - `circuit_country` -> `Country`;
+   - `circuit_name` -> `Grand Prix`;
+   - `race_date` -> `Race Date`.
+
+### 4.4. Служебные staging-запросы
+
+Запросы `results` и `lap_times` нужны только для расчета `DriverRaceAnalysis`. Их не нужно показывать в модели отчета.
+
+1. Правый клик по запросу `results`.
+2. Сними галочку `Enable Load`.
+3. Повтори то же самое для `lap_times`.
+
+После этого `results` и `lap_times` останутся доступными для Power Query, но не будут загружаться как отдельные таблицы в модель Power BI.
+
+## 5. Создание итоговой fact-таблицы
 
 Итоговая таблица будет называться `DriverRaceAnalysis`. В ней одна строка означает одного пилота в одной гонке.
 
-### 4.1. Добавь новый пустой запрос
+### 5.1. Добавь новый пустой запрос
 
 1. В Power Query нажми `Home` -> `New Source` -> `Blank Query`.
 2. В панели слева переименуй новый запрос в `DriverRaceAnalysis`.
@@ -70,9 +152,6 @@
 let
     Results0 = results,
     LapTimes0 = lap_times,
-    Races0 = races,
-    Drivers0 = drivers,
-    Constructors0 = constructors,
 
     Results = Table.TransformColumnTypes(
         Results0,
@@ -93,53 +172,6 @@ let
             {"lap_num", Int64.Type},
             {"position", Int64.Type},
             {"lap_time_ms", Int64.Type}
-        }
-    ),
-
-    RacesTyped = Table.TransformColumnTypes(
-        Races0,
-        {
-            {"race_ID", Int64.Type},
-            {"year", Int64.Type},
-            {"round", Int64.Type},
-            {"circuit_ID", Int64.Type},
-            {"circuit_location", type text},
-            {"circuit_country", type text},
-            {"circuit_name", type text},
-            {"race_date", type text}
-        }
-    ),
-
-    Races = Table.TransformColumns(
-        RacesTyped,
-        {
-            {
-                "race_date",
-                each try Date.FromText(_, [Format = "dd/MM/yyyy", Culture = "en-GB"]) otherwise null,
-                type date
-            }
-        }
-    ),
-
-    Drivers = Table.TransformColumnTypes(
-        Drivers0,
-        {
-            {"driver_ID", Int64.Type},
-            {"driver_ref", type text},
-            {"driver_code", type text},
-            {"driver_forename", type text},
-            {"driver_surname", type text},
-            {"driver_nationality", type text}
-        }
-    ),
-
-    Constructors = Table.TransformColumnTypes(
-        Constructors0,
-        {
-            {"constructor_ID", Int64.Type},
-            {"constructor_ref", type text},
-            {"constructor_name", type text},
-            {"constructor_nationality", type text}
         }
     ),
 
@@ -299,63 +331,8 @@ let
         Int64.Type
     ),
 
-    MergeRaces = Table.NestedJoin(
-        AddPositionGain,
-        {"race_ID"},
-        Races,
-        {"race_ID"},
-        "Races",
-        JoinKind.LeftOuter
-    ),
-
-    ExpandRaces = Table.ExpandTableColumn(
-        MergeRaces,
-        "Races",
-        {"year", "round", "circuit_name", "circuit_country", "race_date"},
-        {"Season", "Round", "Grand Prix", "Country", "Race Date"}
-    ),
-
-    MergeDrivers = Table.NestedJoin(
-        ExpandRaces,
-        {"driver_ID"},
-        Drivers,
-        {"driver_ID"},
-        "Drivers",
-        JoinKind.LeftOuter
-    ),
-
-    ExpandDrivers = Table.ExpandTableColumn(
-        MergeDrivers,
-        "Drivers",
-        {"driver_code", "driver_forename", "driver_surname", "driver_nationality"},
-        {"Driver Code", "Driver Forename", "Driver Surname", "Driver Nationality"}
-    ),
-
-    AddDriverName = Table.AddColumn(
-        ExpandDrivers,
-        "Driver",
-        each Text.Trim(Text.Combine({[Driver Forename], [Driver Surname]}, " ")),
-        type text
-    ),
-
-    MergeConstructors = Table.NestedJoin(
-        AddDriverName,
-        {"constructor_ID"},
-        Constructors,
-        {"constructor_ID"},
-        "Constructors",
-        JoinKind.LeftOuter
-    ),
-
-    ExpandConstructors = Table.ExpandTableColumn(
-        MergeConstructors,
-        "Constructors",
-        {"constructor_name", "constructor_nationality"},
-        {"Constructor", "Constructor Nationality"}
-    ),
-
     AddLatePaceGroup = Table.AddColumn(
-        ExpandConstructors,
+        AddPositionGain,
         "Late Pace Group",
         each if [#"Late vs Middle Pace Improvement"] > 0 then "Late Pace Improved" else "Late Pace Did Not Improve",
         type text
@@ -440,14 +417,6 @@ let
             "race_ID",
             "driver_ID",
             "constructor_ID",
-            "Season",
-            "Round",
-            "Race Date",
-            "Grand Prix",
-            "Country",
-            "Driver",
-            "Driver Code",
-            "Constructor",
             "Start Position",
             "Finish Position",
             "Position Gain",
@@ -461,9 +430,7 @@ let
             "Pace Improvement Bucket",
             "Pace Improvement Bucket Sort",
             "Conversion Quadrant",
-            "Status",
-            "Driver Nationality",
-            "Constructor Nationality"
+            "Status"
         },
         MissingField.Ignore
     )
@@ -471,7 +438,7 @@ in
     ReorderedColumns
 ```
 
-### 4.2. Что делает этот код
+### 5.2. Что делает этот код
 
 Код выполняет все основные расчеты:
 
@@ -482,8 +449,9 @@ in
 - рассчитывает `Middle Relative Pace %`;
 - рассчитывает `Late Relative Pace %`;
 - рассчитывает `Late vs Middle Pace Improvement`;
-- добавляет стартовую позицию, финишную позицию, пилота, команду и гонку;
+- добавляет стартовую позицию, финишную позицию и `constructor_ID` из `results`;
 - рассчитывает `Position Gain = Start Position - Finish Position`;
+- оставляет `race_ID`, `driver_ID` и `constructor_ID` как ключи для связей с dimensions;
 - создает группы для визуализаций.
 
 В этой инструкции используются такие фазы гонки:
@@ -493,20 +461,37 @@ in
 
 Это простой и понятный вариант для первой версии отчета. Если нужно, границы фаз можно поменять в строках с `AddRacePhase`.
 
-## 5. Настройка модели данных
+## 6. Настройка модели данных
 
 После создания `DriverRaceAnalysis`:
 
 1. Нажми `Close & Apply`.
 2. Перейди во вкладку `Model view`.
-3. Для первой версии отчета можно оставить только таблицу `DriverRaceAnalysis` в визуализациях.
-4. Сырые таблицы (`results`, `lap_times`, `races`, `drivers`, `constructors`) лучше скрыть:
-   - правый клик по таблице;
-   - `Hide in report view`.
+3. Проверь, что в модели есть четыре основные таблицы:
+   - `DriverRaceAnalysis`;
+   - `drivers`;
+   - `constructors`;
+   - `races`.
+4. Создай связи:
+   - `drivers[driver_ID]` -> `DriverRaceAnalysis[driver_ID]`;
+   - `constructors[constructor_ID]` -> `DriverRaceAnalysis[constructor_ID]`;
+   - `races[race_ID]` -> `DriverRaceAnalysis[race_ID]`.
+5. Для каждой связи установи:
+   - Cardinality: `One to many (1:*)`;
+   - Cross filter direction: `Single`;
+   - фильтр должен идти от dimension-таблицы к `DriverRaceAnalysis`.
 
-Это снизит риск случайно использовать неправильное поле в графике.
+В итоге должна получиться простая star schema:
 
-## 6. Настройка форматов полей
+```text
+drivers          1 -> * DriverRaceAnalysis
+constructors     1 -> * DriverRaceAnalysis
+races            1 -> * DriverRaceAnalysis
+```
+
+Если `results` или `lap_times` все же видны в модели, вернись в Power Query и сними для них `Enable Load`.
+
+## 7. Настройка форматов полей
 
 В `Data view` выбери таблицу `DriverRaceAnalysis` и настрой поля:
 
@@ -516,7 +501,12 @@ in
 - `Position Gain` -> формат `Whole number`.
 - `Start Position` -> формат `Whole number`.
 - `Finish Position` -> формат `Whole number`.
-- `Race Date` -> формат `Date`.
+
+В таблице `races` настрой:
+
+- `Race Date` -> формат `Date`;
+- `Season` -> формат `Whole number`;
+- `Round` -> формат `Whole number`.
 
 Для сортировки bucket-поля:
 
@@ -524,7 +514,7 @@ in
 2. Нажми `Column tools` -> `Sort by column`.
 3. Выбери `Pace Improvement Bucket Sort`.
 
-## 7. Создание DAX-мер
+## 8. Создание DAX-мер
 
 В Power BI перейди в `Report view`.
 
@@ -532,7 +522,7 @@ in
 2. Нажми `New measure`.
 3. Создай меры ниже по одной.
 
-### 7.1. Базовые меры
+### 8.1. Базовые меры
 
 ```dax
 Observations =
@@ -565,7 +555,7 @@ Median Late Pace Improvement =
 MEDIAN('DriverRaceAnalysis'[Late vs Middle Pace Improvement])
 ```
 
-### 7.2. KPI для проверки гипотезы
+### 8.2. KPI для проверки гипотезы
 
 ```dax
 Conversion Rate - Improvers =
@@ -618,7 +608,7 @@ Position Gain Difference =
 [Median Position Gain - Improvers] - [Median Position Gain - Non-Improvers]
 ```
 
-### 7.3. Дополнительная мера корреляции
+### 8.3. Дополнительная мера корреляции
 
 Эта мера считает ранговую корреляцию между улучшением позднего темпа и изменением позиции. Она нужна как дополнительное доказательство, но не как главный KPI.
 
@@ -670,28 +660,28 @@ RETURN
 
 Если Power BI показывает ошибку на этой мере, временно пропусти ее. Корреляция является дополнительным элементом, а главные выводы строятся на conversion rate и медианном `Position Gain`.
 
-## 8. Общие фильтры отчета
+## 9. Общие фильтры отчета
 
 На каждую страницу можно добавить slicer-фильтры:
 
-- `Season`;
-- `Constructor`;
-- `Driver`;
-- `Starting Position Group`;
-- `Grand Prix`.
+- `races[Season]`;
+- `constructors[Constructor]`;
+- `drivers[Driver]`;
+- `DriverRaceAnalysis[Starting Position Group]`;
+- `races[Grand Prix]`.
 
 Для первой версии достаточно двух фильтров:
 
-- `Season`;
-- `Starting Position Group`.
+- `races[Season]`;
+- `DriverRaceAnalysis[Starting Position Group]`.
 
 Так отчет будет проще читать.
 
-## 9. Страница 1: Executive Verdict
+## 10. Страница 1: Executive Verdict
 
 Цель страницы: сразу показать, подтверждается ли гипотеза.
 
-### 9.1. Добавь заголовок
+### 10.1. Добавь заголовок
 
 Добавь текст:
 
@@ -699,7 +689,7 @@ RETURN
 Executive Verdict: Does Late Pace Convert Into Positions?
 ```
 
-### 9.2. Добавь KPI-карточки
+### 10.2. Добавь KPI-карточки
 
 Создай четыре `Card` visual:
 
@@ -718,19 +708,19 @@ Executive Verdict: Does Late Pace Convert Into Positions?
   - `Median Gain: Non-Improvers`;
   - `Median Gain Gap`.
 
-### 9.3. Добавь график долей исходов
+### 10.3. Добавь график долей исходов
 
 Используй `100% stacked column chart`.
 
 Поля:
 
-- X-axis: `Late Pace Group`;
-- Legend: `Position Outcome`;
+- X-axis: `DriverRaceAnalysis[Late Pace Group]`;
+- Legend: `DriverRaceAnalysis[Position Outcome]`;
 - Values: `Observations`.
 
 Этот график отвечает на вопрос: у какой группы больше доля `Gained Positions`.
 
-### 9.4. Добавь текстовый вывод
+### 10.4. Добавь текстовый вывод
 
 Добавь текстовый блок с выводом. Используй один из вариантов:
 
@@ -748,29 +738,29 @@ Hypothesis not supported: late pace improvers do not gain positions more often t
 
 Выбирай формулировку после просмотра KPI.
 
-## 10. Страница 2: Evidence & Relationship
+## 11. Страница 2: Evidence & Relationship
 
 Цель страницы: показать форму связи между улучшением темпа и изменением позиции.
 
-### 10.1. Scatter plot
+### 11.1. Scatter plot
 
 Добавь `Scatter chart`.
 
 Поля:
 
-- X-axis: `Late vs Middle Pace Improvement`;
-- Y-axis: `Position Gain`;
-- Legend: `Position Outcome`;
-- Details: `Observation ID`;
+- X-axis: `DriverRaceAnalysis[Late vs Middle Pace Improvement]`;
+- Y-axis: `DriverRaceAnalysis[Position Gain]`;
+- Legend: `DriverRaceAnalysis[Position Outcome]`;
+- Details: `DriverRaceAnalysis[Observation ID]`;
 - Tooltips:
-  - `Season`;
-  - `Grand Prix`;
-  - `Driver`;
-  - `Constructor`;
-  - `Start Position`;
-  - `Finish Position`;
-  - `Middle Relative Pace %`;
-  - `Late Relative Pace %`.
+  - `races[Season]`;
+  - `races[Grand Prix]`;
+  - `drivers[Driver]`;
+  - `constructors[Constructor]`;
+  - `DriverRaceAnalysis[Start Position]`;
+  - `DriverRaceAnalysis[Finish Position]`;
+  - `DriverRaceAnalysis[Middle Relative Pace %]`;
+  - `DriverRaceAnalysis[Late Relative Pace %]`.
 
 Настройки:
 
@@ -780,31 +770,31 @@ Hypothesis not supported: late pace improvers do not gain positions more often t
 - точку справа от нуля по X можно читать как улучшение позднего темпа;
 - точку выше нуля по Y можно читать как отыгранные позиции.
 
-### 10.2. Bar chart по bucket
+### 11.2. Bar chart по bucket
 
 Добавь `Clustered column chart`.
 
 Поля:
 
-- X-axis: `Pace Improvement Bucket`;
+- X-axis: `DriverRaceAnalysis[Pace Improvement Bucket]`;
 - Values: `Median Position Gain`.
 
-Проверь, что `Pace Improvement Bucket` отсортирован по `Pace Improvement Bucket Sort`.
+Проверь, что `DriverRaceAnalysis[Pace Improvement Bucket]` отсортирован по `DriverRaceAnalysis[Pace Improvement Bucket Sort]`.
 
-### 10.3. Таблица evidence
+### 11.3. Таблица evidence
 
 Добавь `Table` visual.
 
 Поля:
 
-- `Pace Improvement Bucket`;
+- `DriverRaceAnalysis[Pace Improvement Bucket]`;
 - `Observations`;
 - `Median Position Gain`;
 - `% Gained Positions`.
 
 Сортировка:
 
-- сортируй по `Pace Improvement Bucket Sort` по возрастанию.
+- сортируй по `DriverRaceAnalysis[Pace Improvement Bucket Sort]` по возрастанию.
 
 Главный вопрос этой страницы:
 
@@ -812,18 +802,18 @@ Hypothesis not supported: late pace improvers do not gain positions more often t
 Does stronger late pace improvement usually correspond to better positional outcome?
 ```
 
-## 11. Страница 3: Strategic Application
+## 12. Страница 3: Strategic Application
 
 Цель страницы: показать, где улучшение позднего темпа полезнее всего для команды.
 
-### 11.1. Conversion Rate by Starting Position Group
+### 12.1. Conversion Rate by Starting Position Group
 
 Добавь `Clustered column chart`.
 
 Поля:
 
-- X-axis: `Starting Position Group`;
-- Legend: `Late Pace Group`;
+- X-axis: `DriverRaceAnalysis[Starting Position Group]`;
+- Legend: `DriverRaceAnalysis[Late Pace Group]`;
 - Values: `% Gained Positions`.
 
 Интерпретация:
@@ -831,13 +821,13 @@ Does stronger late pace improvement usually correspond to better positional outc
 - если `Late Pace Improved` выше в конкретной стартовой группе, гипотеза лучше работает именно там;
 - если разницы нет, поздний темп в этой группе плохо объясняет изменение позиции.
 
-### 11.2. Рейтинг конструкторов
+### 12.2. Рейтинг конструкторов
 
 Добавь `Table` или `Matrix`.
 
 Поля:
 
-- `Constructor`;
+- `constructors[Constructor]`;
 - `Observations`;
 - `Median Late Pace Improvement`;
 - `% Gained Positions`;
@@ -849,14 +839,14 @@ Does stronger late pace improvement usually correspond to better positional outc
 
 Это нужно, чтобы не делать выводы по слишком маленьким выборкам.
 
-### 11.3. 2x2 conversion matrix
+### 12.3. 2x2 conversion matrix
 
 Добавь `Matrix` visual.
 
 Поля:
 
-- Rows: `Late Pace Group`;
-- Columns: `Position Gain Flag`;
+- Rows: `DriverRaceAnalysis[Late Pace Group]`;
+- Columns: `DriverRaceAnalysis[Position Gain Flag]`;
 - Values: `Observations`.
 
 Матрица показывает четыре сценария:
@@ -866,35 +856,35 @@ Does stronger late pace improvement usually correspond to better positional outc
 - `Late Pace Did Not Improve` + `Gained Positions` = external / non-pace gain;
 - `Late Pace Did Not Improve` + `Did Not Gain Positions` = expected weakness.
 
-### 11.4. Таблица Unconverted Late Pace
+### 12.4. Таблица Unconverted Late Pace
 
 Добавь `Table` visual.
 
 Поля:
 
-- `Season`;
-- `Grand Prix`;
-- `Driver`;
-- `Constructor`;
-- `Start Position`;
-- `Finish Position`;
-- `Position Gain`;
-- `Middle Relative Pace %`;
-- `Late Relative Pace %`;
-- `Late vs Middle Pace Improvement`;
-- `Status`.
+- `races[Season]`;
+- `races[Grand Prix]`;
+- `drivers[Driver]`;
+- `constructors[Constructor]`;
+- `DriverRaceAnalysis[Start Position]`;
+- `DriverRaceAnalysis[Finish Position]`;
+- `DriverRaceAnalysis[Position Gain]`;
+- `DriverRaceAnalysis[Middle Relative Pace %]`;
+- `DriverRaceAnalysis[Late Relative Pace %]`;
+- `DriverRaceAnalysis[Late vs Middle Pace Improvement]`;
+- `DriverRaceAnalysis[Status]`.
 
 Фильтр visual-level:
 
-- `Conversion Quadrant` = `Unconverted Late Pace`.
+- `DriverRaceAnalysis[Conversion Quadrant]` = `Unconverted Late Pace`.
 
 Сортировка:
 
-- сортируй по `Late vs Middle Pace Improvement` по убыванию.
+- сортируй по `DriverRaceAnalysis[Late vs Middle Pace Improvement]` по убыванию.
 
 Эта таблица показывает случаи, где темп улучшился, но позиции не были отыграны. Это важный список для стратегического разбора.
 
-## 12. Как читать ключевые метрики
+## 13. Как читать ключевые метрики
 
 ### Position Gain
 
@@ -933,7 +923,7 @@ Late vs Middle Pace Improvement = Middle Relative Pace % - Late Relative Pace %
 
 Знак выбран так, чтобы большее значение означало лучший результат.
 
-## 13. Как сформулировать финальный вывод
+## 14. Как сформулировать финальный вывод
 
 Используй такую логику:
 
@@ -957,7 +947,7 @@ Late vs Middle Pace Improvement = Middle Relative Pace % - Late Relative Pace %
 - improvers не отыгрывают позиции чаще;
 - медианный `Position Gain` у improvers не выше.
 
-## 14. Ограничения анализа, которые нужно упомянуть
+## 15. Ограничения анализа, которые нужно упомянуть
 
 В финальном комментарии к отчету обязательно укажи:
 
@@ -967,7 +957,7 @@ Late vs Middle Pace Improvement = Middle Relative Pace % - Late Relative Pace %
 - период анализа начинается с гонок, где есть lap times, то есть старые сезоны без времен кругов не входят в расчет;
 - медиана используется вместо среднего, чтобы снизить влияние очень медленных кругов, пит-стопов и выбросов.
 
-## 15. Финальная проверка перед сдачей
+## 16. Финальная проверка перед сдачей
 
 Перед сдачей отчета проверь:
 
@@ -977,4 +967,6 @@ Late vs Middle Pace Improvement = Middle Relative Pace % - Late Relative Pace %
 - проценты отображаются как проценты, а не как десятичные числа;
 - `Pace Improvement Bucket` отсортирован в правильном порядке;
 - в таблице `DriverRaceAnalysis` одна строка соответствует одному пилоту в одной гонке;
+- модель построена как star schema: `drivers`, `constructors` и `races` фильтруют `DriverRaceAnalysis`;
+- текстовые поля пилотов, команд и гонок берутся из dimension-таблиц, а не дублируются в `DriverRaceAnalysis`;
 - вывод сформулирован аккуратно: late pace improvement может быть индикатором positional gain, но не единственной причиной.
